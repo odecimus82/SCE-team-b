@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MAX_CAPACITY, REGISTRATION_DEADLINE } from '../constants';
+import { REGISTRATION_DEADLINE } from '../constants';
 
 interface Props {
   onSuccess: () => void;
@@ -49,14 +48,11 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
     init();
   }, [editMode, onSuccess]);
 
-  const neededSlots = 1 + formData.adultFamilyCount + formData.childFamilyCount;
-  const remainingSlots = MAX_CAPACITY - currentTotal;
-  const isOverflow = !editMode && (neededSlots > remainingSlots);
+  const neededSlots = 1 + (Number(formData.adultFamilyCount) || 0) + (Number(formData.childFamilyCount) || 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (Date.now() > REGISTRATION_DEADLINE) return alert("报名已截止");
-    if (isOverflow) return alert("名额不足");
     
     setIsSubmitting(true);
     try {
@@ -94,7 +90,7 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
             {editMode ? '修改报名' : '实时报名系统'}
           </h2>
           <p className="opacity-70 font-bold mt-1 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-sky-400">
-            云端实时同步 • 剩余 {remainingSlots} 席
+            云端实时同步 • 欢迎报名
           </p>
         </div>
 
@@ -126,16 +122,16 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
           </div>
 
           <button 
-            disabled={isSubmitting || isOverflow}
+            disabled={isSubmitting}
             type="submit"
             className={`w-full font-black py-4 rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-1 ${
-              isSubmitting || isOverflow ? 'bg-gray-100 text-gray-400' : 'bg-sky-500 text-white hover:bg-sky-600'
+              isSubmitting ? 'bg-gray-100 text-gray-400' : 'bg-sky-500 text-white hover:bg-sky-600'
             }`}
           >
             {isSubmitting ? '同步中...' : (
               <>
                 <span>确认提交</span>
-                <span className="text-[10px] opacity-80 tracking-widest">本次占用 {neededSlots} 个名额</span>
+                <span className="text-[10px] opacity-80 tracking-widest">本次共计 {neededSlots} 人</span>
               </>
             )}
           </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MAX_CAPACITY, REGISTRATION_DEADLINE } from '../constants';
+import { MAX_CAPACITY_TARGET, REGISTRATION_DEADLINE } from '../constants';
 import { Registration } from '../types';
 
 interface Props {
@@ -31,13 +31,13 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
     const timer = setInterval(() => {
       setNow(Date.now());
       fetchData();
-    }, 10000); // Poll every 10 seconds
+    }, 10000); 
     return () => clearInterval(timer);
   }, []);
 
-  const remaining = MAX_CAPACITY - currentCount;
   const isDeadlinePassed = now > REGISTRATION_DEADLINE;
-  const progressPercent = (currentCount / MAX_CAPACITY) * 100;
+  // 进度条百分比，如果超过目标值则显示 100%
+  const progressPercent = Math.min((currentCount / MAX_CAPACITY_TARGET) * 100, 100);
   
   const canEdit = ownReg && !ownReg.hasEdited;
   const heroImage = `https://wsrv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
@@ -55,8 +55,8 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
                 已截止
               </div>
             ) : (
-              <div className={`px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black border ${remaining > 5 ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700 animate-pulse'}`}>
-                {remaining > 0 ? `剩 ${remaining} 位` : '满员'}
+              <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black border bg-green-50 border-green-200 text-green-700">
+                火热报名中
               </div>
             )}
           </div>
@@ -71,17 +71,17 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
 
           <div className="max-w-xs mx-auto lg:mx-0 space-y-1">
             <div className="flex justify-between text-[8px] sm:text-[10px] font-black text-gray-700 uppercase tracking-widest">
-              <span>报名进度</span>
-              <span>{currentCount}/{MAX_CAPACITY}</span>
+              <span>已报名总人数</span>
+              <span>{currentCount} 人</span>
             </div>
             <div className="h-2.5 sm:h-3 bg-gray-200 rounded-full overflow-hidden p-0.5 border border-gray-900">
-              <div className={`h-full rounded-full transition-all duration-1000 ${remaining < 5 ? 'bg-red-500' : 'bg-sky-500'}`} style={{ width: `${progressPercent}%` }}></div>
+              <div className="h-full rounded-full transition-all duration-1000 bg-sky-500" style={{ width: `${progressPercent}%` }}></div>
             </div>
           </div>
 
           <p className="text-[11px] sm:text-base text-gray-600 max-w-lg mx-auto lg:mx-0 font-medium leading-snug">
             探索华为 <span className="text-gray-900 font-bold underline decoration-sky-400 decoration-2">“溪村”</span> 艺术之巅。
-            <span className="text-red-500 font-bold block mt-1 text-[9px] sm:text-xs">※ 仅 21 席。</span>
+            <span className="text-sky-500 font-bold block mt-1 text-[9px] sm:text-xs">欢迎携带家属一同前往！</span>
           </p>
           
           <div className="flex flex-col sm:flex-row gap-2 justify-center lg:justify-start pt-2">
@@ -95,10 +95,10 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
             ) : (
               <button 
                 onClick={onRegister}
-                disabled={remaining <= 0 || isDeadlinePassed}
-                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ (remaining > 0 && !isDeadlinePassed) ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                disabled={isDeadlinePassed}
+                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ !isDeadlinePassed ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
               >
-                {isDeadlinePassed ? '截止' : remaining > 0 ? '立即预约' : '满员'}
+                {isDeadlinePassed ? '报名已截止' : '立即预约'}
               </button>
             )}
             <button 

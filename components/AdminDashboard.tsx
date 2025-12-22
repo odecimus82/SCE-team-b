@@ -3,18 +3,21 @@ import { storageService } from '../services/storageService';
 import { Registration, CampusInfoSection } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
+type AdminTab = 'stats' | 'list' | 'guide';
+
 const AdminDashboard: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [campusData, setCampusData] = useState<CampusInfoSection[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'stats' | 'guide'>('stats');
+  const [activeTab, setActiveTab] = useState<AdminTab>('stats');
   const [password, setPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [dbStatus, setDbStatus] = useState<'connected' | 'offline'>('offline');
 
   const refreshData = async () => {
     const regs = await storageService.fetchRemoteRegistrations();
-    setRegistrations(regs);
+    // 按时间倒序排列，最新的在前
+    setRegistrations([...regs].sort((a, b) => b.timestamp - a.timestamp));
     const guide = await storageService.fetchCampusData();
     setCampusData(guide);
     
@@ -50,6 +53,36 @@ const AdminDashboard: React.FC = () => {
       alert('保存失败，请检查网络');
     }
     setIsSaving(false);
+  };
+
+  const exportToExcel = () => {
+    if (registrations.length === 0) return alert('暂无数据可导出');
+
+    // CSV 表头
+    const headers = ['报名ID', '中文姓名', '英文名', '手机号', '大人随行', '儿童随行', '总计人数', '报名时间', '是否修改过'];
+    
+    // 生成 CSV 内容（增加 BOM 头以支持 Excel 直接打开不乱码）
+    const rows = registrations.map(reg => [
+      reg.id,
+      reg.name,
+      reg.englishName,
+      reg.phone,
+      reg.adultFamilyCount,
+      reg.childFamilyCount,
+      1 + reg.adultFamilyCount + reg.childFamilyCount,
+      new Date(reg.timestamp).toLocaleString(),
+      reg.hasEdited ? '是' : '否'
+    ]);
+
+    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Corsair_2026_报名名单_${new Date().toLocaleDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const updateSection = (idx: number, field: keyof CampusInfoSection, value: any) => {
@@ -93,8 +126,9 @@ const AdminDashboard: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl">
-          <button onClick={() => setActiveTab('stats')} className={`px-6 py-2 rounded-xl font-black text-xs transition-all ${activeTab === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>报名统计</button>
-          <button onClick={() => setActiveTab('guide')} className={`px-6 py-2 rounded-xl font-black text-xs transition-all ${activeTab === 'guide' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>指南编辑</button>
+          <button onClick={() => setActiveTab('stats')} className={`px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>数据概览</button>
+          <button onClick={() => setActiveTab('list')} className={`px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>名单列表</button>
+          <button onClick={() => setActiveTab('guide')} className={`px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === 'guide' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>指南编辑</button>
         </div>
         <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${dbStatus === 'connected' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
           <span className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></span>
@@ -102,8 +136,8 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {activeTab === 'stats' ? (
-        <>
+      {activeTab === 'stats' && (
+        <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: '预计到场', value: stats.totalPeople, sub: '总人数', color: 'text-gray-900' },
@@ -137,8 +171,79 @@ const AdminDashboard: React.FC = () => {
                 </ResponsiveContainer>
              </div>
           </div>
-        </>
-      ) : (
+        </div>
+      )}
+
+      {activeTab === 'list' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">报名名单</h3>
+              <p className="text-[10px] text-gray-400 font-bold">共计 {registrations.length} 条记录</p>
+            </div>
+            <button 
+              onClick={exportToExcel}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl font-black text-[10px] hover:bg-green-700 transition-all shadow-md active:scale-95"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              导出 EXCEL (CSV)
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">姓名 (EN)</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">手机号</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">随行大人</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">随行儿童</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">总计</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">报名时间</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">状态</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {registrations.map((reg) => (
+                    <tr key={reg.id} className="hover:bg-sky-50/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-black text-gray-900 text-sm">{reg.name}</div>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase">{reg.englishName}</div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-600">{reg.phone}</td>
+                      <td className="px-6 py-4 text-center font-black text-blue-500">{reg.adultFamilyCount}</td>
+                      <td className="px-6 py-4 text-center font-black text-green-500">{reg.childFamilyCount}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="bg-gray-900 text-white px-2 py-0.5 rounded text-[10px] font-black">
+                          {1 + reg.adultFamilyCount + reg.childFamilyCount}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-[10px] font-bold text-gray-400">
+                        {new Date(reg.timestamp).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {reg.hasEdited ? (
+                          <span className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase">已修改</span>
+                        ) : (
+                          <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase">正常</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {registrations.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-bold text-sm">暂无报名数据</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'guide' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -174,7 +279,7 @@ const AdminDashboard: React.FC = () => {
 
                       <div className="space-y-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">图片 URL (下方有推荐图床)</label>
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">图片 URL</label>
                           <input type="text" value={section.image} onChange={e => updateSection(idx, 'image', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-mono text-[10px] text-sky-600" />
                           <div className="mt-2 aspect-video rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
                              <img src={section.image} className="w-full h-full object-cover" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Invalid+Image+URL'; }} />
@@ -216,22 +321,6 @@ const AdminDashboard: React.FC = () => {
                     </div>
                     <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                   </a>
-                  <a href="https://sm.ms/" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10 group">
-                    <div>
-                      <p className="text-xs font-black">SM.MS</p>
-                      <p className="text-[9px] text-gray-500">开发者常用、口碑好</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                  </a>
-                </div>
-                <div className="pt-4 border-t border-white/10">
-                   <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tighter">操作流程：</p>
-                   <p className="text-[9px] text-gray-400 mt-1 leading-relaxed">
-                     1. 访问上方任一图床<br/>
-                     2. 上传您的园区实拍照片<br/>
-                     3. 复制获得的 <span className="text-sky-400">直链 URL</span> (通常以 .jpg 或 .png 结尾)<br/>
-                     4. 粘贴到左侧输入框并保存
-                   </p>
                 </div>
               </div>
             </div>
