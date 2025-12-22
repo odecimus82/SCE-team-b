@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { MAX_CAPACITY, REGISTRATION_DEADLINE } from '../constants';
+import { Registration } from '../types';
 
 interface Props {
   onRegister: () => void;
@@ -11,14 +12,29 @@ interface Props {
 const HomeView: React.FC<Props> = ({ onRegister, onExplore }) => {
   const [currentCount, setCurrentCount] = useState(0);
   const [now, setNow] = useState(Date.now());
-  const [ownReg, setOwnReg] = useState(storageService.getOwnRegistration());
+  // Fix: ownReg should hold the Registration object (or null), not the initial Promise from the async function
+  const [ownReg, setOwnReg] = useState<Registration | null>(null);
 
   useEffect(() => {
-    setCurrentCount(storageService.getTotalCount());
+    // Fix: fetch data asynchronously and update state inside useEffect
+    const fetchData = async () => {
+      try {
+        const regs = await storageService.fetchRemoteRegistrations();
+        // Fix: Use calculateTotalCount with the fetched registrations as getTotalCount does not exist
+        setCurrentCount(storageService.calculateTotalCount(regs));
+        
+        const reg = await storageService.getOwnRegistration();
+        setOwnReg(reg);
+      } catch (error) {
+        console.error("Failed to fetch home view data:", error);
+      }
+    };
+
+    fetchData();
     const timer = setInterval(() => {
       setNow(Date.now());
-      setOwnReg(storageService.getOwnRegistration());
-    }, 1000);
+      fetchData();
+    }, 10000); // Poll every 10 seconds
     return () => clearInterval(timer);
   }, []);
 
@@ -26,8 +42,9 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore }) => {
   const isDeadlinePassed = now > REGISTRATION_DEADLINE;
   const progressPercent = (currentCount / MAX_CAPACITY) * 100;
   
+  // Fix: ownReg is now correctly typed as Registration | null, so hasEdited property exists
   const canEdit = ownReg && !ownReg.hasEdited;
-  const heroImage = `https://images.weserv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
+  const heroImage = `https://wsrv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-3 sm:py-6 lg:py-10 overflow-x-hidden">
