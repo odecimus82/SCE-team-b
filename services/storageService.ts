@@ -1,4 +1,3 @@
-
 import { Registration, CampusInfoSection } from '../types';
 import { CAMPUS_DATA as DEFAULT_CAMPUS_DATA } from '../constants';
 
@@ -10,11 +9,24 @@ export const storageService = {
   // 从服务器拉取最新汇总数据
   fetchRemoteRegistrations: async (): Promise<Registration[]> => {
     try {
-      const res = await fetch(SYNC_API);
-      if (!res.ok) throw new Error('Fetch failed');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+
+      const res = await fetch(SYNC_API, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.warn('Sync API responded with error:', res.status, errorData);
+        return [];
+      }
       return await res.json();
-    } catch (e) {
-      console.error('Remote sync failed, using fallback', e);
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.error('Sync request timed out');
+      } else {
+        console.warn('Remote sync unavailable (likely local dev or missing KV):', e.message);
+      }
       return [];
     }
   },
@@ -29,34 +41,42 @@ export const storageService = {
       hasEdited: false,
     };
 
-    // 1. 保存 ID 到本地，标识“我的报名”
     localStorage.setItem(OWN_REG_ID_KEY, id);
 
-    // 2. 同步到云端
-    await fetch(SYNC_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ registration: newReg })
-    });
+    try {
+      const res = await fetch(SYNC_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registration: newReg })
+      });
+      if (!res.ok) throw new Error('Cloud save failed');
+    } catch (e) {
+      console.error('Failed to sync registration to cloud:', e);
+      // 虽然同步失败，但我们已经在本地存了 ID，用户体验上会继续
+    }
 
     return newReg;
   },
 
   // 更新报名信息
   updateRegistration: async (id: string, data: Partial<Registration>): Promise<boolean> => {
-    const remoteData = await storageService.fetchRemoteRegistrations();
-    const existing = remoteData.find(r => r.id === id);
-    
-    if (existing) {
-      if (existing.hasEdited) return false; // 防止重复修改
-      const updated = { ...existing, ...data, hasEdited: true };
+    try {
+      const remoteData = await storageService.fetchRemoteRegistrations();
+      const existing = remoteData.find(r => r.id === id);
       
-      await fetch(SYNC_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registration: updated })
-      });
-      return true;
+      if (existing) {
+        if (existing.hasEdited) return false;
+        const updated = { ...existing, ...data, hasEdited: true };
+        
+        const res = await fetch(SYNC_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ registration: updated })
+        });
+        return res.ok;
+      }
+    } catch (e) {
+      console.error('Update sync failed:', e);
     }
     return false;
   },
@@ -68,12 +88,10 @@ export const storageService = {
     return remoteData.find(r => r.id === id) || null;
   },
 
-  // 获取总人数（前端实时计算）
   calculateTotalCount: (regs: Registration[]): number => {
     return regs.reduce((sum, reg) => sum + 1 + (reg.adultFamilyCount || 0) + (reg.childFamilyCount || 0), 0);
   },
 
-  // 园区指南配置（仍保持本地或按需同步）
   getCampusData: (): CampusInfoSection[] => {
     const data = localStorage.getItem(CAMPUS_STORAGE_KEY);
     return data ? JSON.parse(data) : DEFAULT_CAMPUS_DATA;
