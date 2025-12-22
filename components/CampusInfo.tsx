@@ -1,14 +1,28 @@
-
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { CampusInfoSection } from '../types';
 
 const CampusInfo: React.FC = () => {
   const [sections, setSections] = useState<CampusInfoSection[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setSections(storageService.getCampusData());
+    const loadData = async () => {
+      const data = await storageService.fetchCampusData();
+      setSections(data);
+      setLoading(false);
+    };
+    loadData();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-20 text-center">
+        <div className="inline-block w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">加载云端指南...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-4 sm:py-8 space-y-8 sm:space-y-12">
