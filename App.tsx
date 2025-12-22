@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AppView } from './types';
 import { TEAM_LOGO_SVG } from './constants';
@@ -69,7 +68,13 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-grow">
-        {view === 'home' && <HomeView onRegister={() => setView('register')} onExplore={() => setView('info')} />}
+        {view === 'home' && (
+          <HomeView 
+            onRegister={() => setView('register')} 
+            onExplore={() => setView('info')} 
+            onEdit={() => setView('edit')}
+          />
+        )}
         {view === 'register' && <RegistrationForm onSuccess={() => setView('home')} />}
         {view === 'edit' && <RegistrationForm editMode onSuccess={() => setView('home')} />}
         {view === 'info' && <CampusInfo />}

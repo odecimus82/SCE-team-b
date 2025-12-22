@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { MAX_CAPACITY, REGISTRATION_DEADLINE } from '../constants';
@@ -7,20 +6,18 @@ import { Registration } from '../types';
 interface Props {
   onRegister: () => void;
   onExplore: () => void;
+  onEdit: () => void;
 }
 
-const HomeView: React.FC<Props> = ({ onRegister, onExplore }) => {
+const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
   const [currentCount, setCurrentCount] = useState(0);
   const [now, setNow] = useState(Date.now());
-  // Fix: ownReg should hold the Registration object (or null), not the initial Promise from the async function
   const [ownReg, setOwnReg] = useState<Registration | null>(null);
 
   useEffect(() => {
-    // Fix: fetch data asynchronously and update state inside useEffect
     const fetchData = async () => {
       try {
         const regs = await storageService.fetchRemoteRegistrations();
-        // Fix: Use calculateTotalCount with the fetched registrations as getTotalCount does not exist
         setCurrentCount(storageService.calculateTotalCount(regs));
         
         const reg = await storageService.getOwnRegistration();
@@ -42,7 +39,6 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore }) => {
   const isDeadlinePassed = now > REGISTRATION_DEADLINE;
   const progressPercent = (currentCount / MAX_CAPACITY) * 100;
   
-  // Fix: ownReg is now correctly typed as Registration | null, so hasEdited property exists
   const canEdit = ownReg && !ownReg.hasEdited;
   const heroImage = `https://wsrv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
 
@@ -91,7 +87,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore }) => {
           <div className="flex flex-col sm:flex-row gap-2 justify-center lg:justify-start pt-2">
             {ownReg ? (
               <button 
-                onClick={() => canEdit ? window.location.hash = '#edit' : null}
+                onClick={() => canEdit ? onEdit() : null}
                 className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${canEdit ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-100 text-gray-400 cursor-default'}`}
               >
                 {canEdit ? '修改报名' : '已报名'}

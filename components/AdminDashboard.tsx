@@ -140,50 +140,101 @@ const AdminDashboard: React.FC = () => {
         </>
       ) : (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-sky-50 p-4 rounded-2xl border border-sky-100">
-            <p className="text-xs font-bold text-sky-700 italic">在此上传图片链接并修改文字，点击“保存并发布”即可更新前台展示。</p>
-            <button 
-              disabled={isSaving}
-              onClick={handleSaveGuide} 
-              className="bg-sky-600 text-white px-6 py-2 rounded-xl font-black text-xs hover:bg-sky-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
-            >
-              {isSaving ? '正在同步...' : '保存并发布到云端'}
-            </button>
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="flex justify-between items-center bg-sky-50 p-4 rounded-2xl border border-sky-100">
+                <p className="text-xs font-bold text-sky-700 italic">在此上传图片链接并修改文字，点击“保存并发布”即可更新前台展示。</p>
+                <button 
+                  disabled={isSaving}
+                  onClick={handleSaveGuide} 
+                  className="bg-sky-600 text-white px-6 py-2 rounded-xl font-black text-xs hover:bg-sky-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {isSaving ? '正在同步...' : '保存并发布到云端'}
+                </button>
+              </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {campusData.map((section, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase">栏目 {idx + 1}</span>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">标题</label>
-                    <input type="text" value={section.title} onChange={e => updateSection(idx, 'title', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-bold text-sm" />
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">描述文案</label>
-                    <textarea rows={3} value={section.description} onChange={e => updateSection(idx, 'description', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-medium text-xs leading-relaxed" />
-                  </div>
+              <div className="grid gap-6">
+                {campusData.map((section, idx) => (
+                  <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase">栏目 {idx + 1}</span>
+                    </div>
+                    
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">标题</label>
+                          <input type="text" value={section.title} onChange={e => updateSection(idx, 'title', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-bold text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">描述文案</label>
+                          <textarea rows={3} value={section.description} onChange={e => updateSection(idx, 'description', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-medium text-xs leading-relaxed" />
+                        </div>
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">图片 URL (支持高清链接)</label>
-                    <input type="text" value={section.image} onChange={e => updateSection(idx, 'image', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-mono text-[10px] text-sky-600" />
-                    <div className="mt-2 aspect-video rounded-xl overflow-hidden border border-gray-100">
-                       <img src={section.image} className="w-full h-full object-cover" alt="Preview" />
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">图片 URL (下方有推荐图床)</label>
+                          <input type="text" value={section.image} onChange={e => updateSection(idx, 'image', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-mono text-[10px] text-sky-600" />
+                          <div className="mt-2 aspect-video rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                             <img src={section.image} className="w-full h-full object-cover" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Invalid+Image+URL'; }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">亮点要点 (逗号分隔)</label>
+                      <input type="text" value={section.items.join(', ')} onChange={e => updateSection(idx, 'items', e.target.value.split(',').map(s => s.trim()))} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-bold text-xs" />
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">亮点要点 (逗号分隔)</label>
-                    <input type="text" value={section.items.join(', ')} onChange={e => updateSection(idx, 'items', e.target.value.split(',').map(s => s.trim()))} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-bold text-xs" />
+            <div className="space-y-6">
+              <div className="bg-gray-900 rounded-[2rem] p-6 text-white space-y-4 sticky top-24">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   </div>
+                  <h3 className="text-sm font-black uppercase tracking-widest">推荐图床</h3>
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed">指南图片需要稳定的“外链地址”。推荐以下适合中国网络环境的免费图床：</p>
+                <div className="space-y-2">
+                  <a href="https://imgtp.com/" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10 group">
+                    <div>
+                      <p className="text-xs font-black">路过图床 (ImgTP)</p>
+                      <p className="text-[9px] text-gray-500">国内最快、最稳定推荐</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </a>
+                  <a href="https://www.superbed.cn/" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10 group">
+                    <div>
+                      <p className="text-xs font-black">聚合图床 (SuperBed)</p>
+                      <p className="text-[9px] text-gray-500">多节点备用、高可用</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </a>
+                  <a href="https://sm.ms/" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10 group">
+                    <div>
+                      <p className="text-xs font-black">SM.MS</p>
+                      <p className="text-[9px] text-gray-500">开发者常用、口碑好</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </a>
+                </div>
+                <div className="pt-4 border-t border-white/10">
+                   <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tighter">操作流程：</p>
+                   <p className="text-[9px] text-gray-400 mt-1 leading-relaxed">
+                     1. 访问上方任一图床<br/>
+                     2. 上传您的园区实拍照片<br/>
+                     3. 复制获得的 <span className="text-sky-400">直链 URL</span> (通常以 .jpg 或 .png 结尾)<br/>
+                     4. 粘贴到左侧输入框并保存
+                   </p>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}
