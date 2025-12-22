@@ -1,7 +1,5 @@
 {
   "name": "SCE Team 2026 Team Building Hub",
   "description": "An all-in-one registration and information portal for SCE Team's team building event at Huawei Dongguan Campus.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

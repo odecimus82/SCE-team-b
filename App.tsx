@@ -30,7 +30,7 @@ const App: React.FC = () => {
       <div className="fixed bottom-0 left-0 w-80 h-80 bg-slate-200 opacity-30 blur-3xl -z-10 rounded-full -translate-x-1/2 translate-y-1/2"></div>
 
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
           <div 
             className="flex items-center gap-3 cursor-pointer group" 
             onClick={() => setView('home')}
@@ -39,8 +39,8 @@ const App: React.FC = () => {
               {TEAM_LOGO_SVG}
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tighter text-gray-900 leading-none">CORSAIR (SCE)</h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-black">2026 TEAM BUILDING</p>
+              <h1 className="text-lg sm:text-xl font-extrabold tracking-tighter text-gray-900 leading-none">CORSAIR (SCE)</h1>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-sky-500 font-black">2026 TEAM BUILDING</p>
             </div>
           </div>
 
@@ -79,21 +79,21 @@ const App: React.FC = () => {
         {view === 'admin' && <AdminDashboard />}
       </main>
 
-      <footer className="bg-gray-900 text-gray-400 py-12 px-4 mt-20">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+      <footer className="bg-gray-900 text-gray-400 py-8 sm:py-10 px-4 mt-8 sm:mt-12">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 sm:gap-8">
           <div className="flex items-center gap-4">
             <div className="text-white w-8 h-8 opacity-70">
               {TEAM_LOGO_SVG}
             </div>
             <div>
-              <p className="font-bold text-white uppercase tracking-wider">CORSAIR (SCE) 2026 团建活动</p>
-              <p className="text-sm">东莞华为松山湖基地 • 2026年1月10日</p>
+              <p className="font-bold text-white uppercase tracking-wider text-sm sm:text-base">CORSAIR (SCE) 2026 团建活动</p>
+              <p className="text-xs sm:text-sm">东莞华为松山湖基地 • 2026年1月10日</p>
             </div>
           </div>
-          <div className="text-sm text-center md:text-right">
-            <p className="text-sky-500 font-black uppercase tracking-widest text-[10px] mb-2">报名截止：12/26 18:00</p>
+          <div className="text-xs sm:text-sm text-center md:text-right">
+            <p className="text-sky-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] mb-1">报名截止：12/26 18:00</p>
             <p>随行儿童：由公司统一支持</p>
-            <p className="mt-2 text-gray-500 font-medium">© 2026 Corsair. All Rights Reserved.</p>
+            <p className="mt-1 text-gray-500 font-medium">© 2026 Corsair. All Rights Reserved.</p>
           </div>
         </div>
       </footer>
