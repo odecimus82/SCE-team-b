@@ -34,7 +34,6 @@ const AdminDashboard: React.FC = () => {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        // 使用 Canvas 压缩图片，防止 Base64 溢出 localStorage 限制
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 1200;
         let width = img.width;
@@ -71,9 +70,10 @@ const AdminDashboard: React.FC = () => {
       alert("当前没有报名数据可导出");
       return;
     }
-    const headers = ["姓名", "联系方式", "随行成人", "随行儿童", "报名时间"];
+    const headers = ["姓名", "英文名", "联系方式", "随行成人", "随行儿童", "报名时间"];
     const rows = registrations.map(reg => [
       reg.name,
+      reg.englishName || '-',
       `'${reg.phone}`,
       reg.adultFamilyCount,
       reg.childFamilyCount,
@@ -143,7 +143,7 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('campus')}
             className={`px-8 py-3 rounded-xl font-black transition-all ${activeTab === 'campus' ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
           >
-            园区指南管理
+            指南管理
           </button>
         </div>
         <div className="flex gap-4">
@@ -196,7 +196,7 @@ const AdminDashboard: React.FC = () => {
               <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
                 {registrations.slice().reverse().map((reg, i) => (
                   <div key={i} className="p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-sky-100 transition-all">
-                    <p className="font-black text-gray-900">{reg.name}</p>
+                    <p className="font-black text-gray-900">{reg.name} {reg.englishName ? `(${reg.englishName})` : ''}</p>
                     <p className="text-xs text-sky-600 font-bold">{reg.phone}</p>
                   </div>
                 ))}
@@ -209,8 +209,8 @@ const AdminDashboard: React.FC = () => {
           <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
             <div className="flex justify-between items-center border-b border-gray-100 pb-6">
               <div>
-                <h3 className="text-2xl font-black text-gray-900">园区指南内容管理</h3>
-                <p className="text-gray-500 font-medium">在此上传的图片将实时更新到“园区指南”页面，所有人均可见。</p>
+                <h3 className="text-2xl font-black text-gray-900">内容管理</h3>
+                <p className="text-gray-500 font-medium">在此更新园区指南的图片和描述。</p>
               </div>
               <button 
                 onClick={saveCampusConfig}
@@ -257,12 +257,12 @@ const AdminDashboard: React.FC = () => {
                     />
                   </div>
                   <div className="lg:col-span-2 space-y-4">
-                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest">板块实景图预览</label>
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest">预览图</label>
                     <div className="relative group rounded-2xl overflow-hidden aspect-video border-4 border-white shadow-sm bg-gray-200">
                       <img src={section.image} className="w-full h-full object-cover" alt="Preview" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <label className="cursor-pointer bg-white text-gray-900 px-6 py-3 rounded-xl font-black shadow-xl hover:scale-105 transition-transform">
-                          点击更换图片
+                          更换图片
                           <input 
                             type="file" 
                             accept="image/*" 
@@ -272,7 +272,6 @@ const AdminDashboard: React.FC = () => {
                         </label>
                       </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 font-medium italic">建议上传 16:9 比例的图片，系统会自动进行高清压缩处理以优化加载速度。</p>
                   </div>
                 </div>
               ))}

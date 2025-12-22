@@ -11,6 +11,7 @@ interface Props {
 const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
   const [formData, setFormData] = useState({
     name: '',
+    englishName: '',
     phone: '',
     adultFamilyCount: 0,
     childFamilyCount: 0,
@@ -27,6 +28,7 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
       if (reg) {
         setFormData({
           name: reg.name,
+          englishName: reg.englishName || '',
           phone: reg.phone,
           adultFamilyCount: reg.adultFamilyCount,
           childFamilyCount: reg.childFamilyCount,
@@ -74,14 +76,14 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
     setIsSubmitting(true);
     setTimeout(() => {
       if (editMode && ownRegId) {
-        const success = storageService.updateRegistration(ownRegId, formData);
+        const success = storageService.updateRegistration(ownRegId, formData as any);
         if (!success) {
           alert("修改失败，可能您已经修改过一次或信息不存在。");
           onSuccess();
           return;
         }
       } else {
-        storageService.saveRegistration(formData);
+        storageService.saveRegistration(formData as any);
       }
       setIsSubmitting(false);
       setShowSuccess(true);
@@ -110,109 +112,113 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
-      <div className="bg-white rounded-[2rem] sm:rounded-[3rem] shadow-2xl overflow-hidden border border-gray-100">
-        <div className="bg-gray-900 p-6 sm:p-10 text-white relative text-center">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-sky-500 rounded-full blur-3xl opacity-30"></div>
-          <h2 className="text-2xl sm:text-4xl font-black uppercase tracking-tighter">
-            {editMode ? '修改我的报名' : 'CORSAIR (SCE) 团队报名'}
+    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-10">
+      <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-xl overflow-hidden border border-gray-100">
+        <div className="bg-gray-900 p-6 sm:p-8 text-white relative text-center">
+          <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter">
+            {editMode ? '修改我的报名' : '活动报名'}
           </h2>
-          <p className="opacity-70 font-bold mt-1 sm:mt-2 text-sm sm:text-lg uppercase tracking-widest text-sky-400">
-            松山湖之约 • 限额 21 人
+          <p className="opacity-70 font-bold mt-1 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-sky-400">
+            松山湖之约 • 限额 21 人 (剩 {remainingSlots} 位)
           </p>
-          <div className="inline-block mt-4 bg-white/10 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full text-[10px] sm:text-xs font-black border border-white/20 tracking-[0.15em] sm:tracking-[0.2em] uppercase">
-            当前剩余 {remainingSlots} 个名额
-          </div>
-          {editMode && (
-            <div className="mt-4 block sm:inline-block text-[10px] font-bold text-amber-400 uppercase tracking-widest bg-amber-400/10 px-4 py-1 rounded-full border border-amber-400/20">
-              提示：仅限修改 1 次
-            </div>
-          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 sm:p-10 space-y-8 sm:space-y-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] sm:text-sm font-black text-gray-700 uppercase tracking-widest block ml-1">您的姓名</label>
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block ml-1">中文姓名</label>
               <input 
                 required 
                 type="text" 
                 value={formData.name} 
                 onChange={e => setFormData({...formData, name: e.target.value})} 
                 placeholder="真实姓名" 
-                className="w-full px-5 py-3.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 focus:border-sky-500 outline-none transition-all placeholder:text-gray-300 font-bold" 
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-sky-500 outline-none transition-all placeholder:text-gray-300 font-bold text-sm" 
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] sm:text-sm font-black text-gray-700 uppercase tracking-widest block ml-1">联系电话</label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block ml-1">英文名 / Alias</label>
+              <input 
+                required 
+                type="text" 
+                value={formData.englishName} 
+                onChange={e => setFormData({...formData, englishName: e.target.value})} 
+                placeholder="English Name" 
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-sky-500 outline-none transition-all placeholder:text-gray-300 font-bold text-sm" 
+              />
+            </div>
+            <div className="md:col-span-2 space-y-1.5">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block ml-1">联系电话</label>
               <input 
                 required 
                 type="tel" 
                 value={formData.phone} 
                 onChange={e => setFormData({...formData, phone: e.target.value})} 
                 placeholder="手机号码" 
-                className="w-full px-5 py-3.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-gray-100 focus:border-sky-500 outline-none transition-all placeholder:text-gray-300 font-bold" 
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-sky-500 outline-none transition-all placeholder:text-gray-300 font-bold text-sm" 
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 p-6 sm:p-10 bg-slate-50 rounded-[1.5rem] sm:rounded-[2.5rem] border-2 border-slate-100 relative overflow-hidden group">
-            <div className="space-y-2 relative z-10">
-              <label className="text-[10px] sm:text-sm font-black text-gray-600 uppercase tracking-widest block ml-1">随行大人 (自理)</label>
+          <div className="grid grid-cols-2 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest block ml-1 text-center">随行大人 (自理)</label>
               <input 
                 type="number" 
                 min="0" 
                 max="5" 
                 value={formData.adultFamilyCount} 
                 onChange={e => setFormData({...formData, adultFamilyCount: parseInt(e.target.value) || 0})} 
-                className="w-full px-5 py-3.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-white bg-white focus:border-sky-400 outline-none shadow-sm font-black text-center text-lg" 
+                className="w-full px-4 py-2.5 rounded-xl border border-white bg-white focus:border-sky-400 outline-none shadow-sm font-black text-center text-base" 
               />
             </div>
-            <div className="space-y-2 relative z-10">
-              <label className="text-[10px] sm:text-sm font-black text-gray-600 uppercase tracking-widest block ml-1">随行儿童 (支持)</label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest block ml-1 text-center">随行儿童 (支持)</label>
               <input 
                 type="number" 
                 min="0" 
                 max="5" 
                 value={formData.childFamilyCount} 
                 onChange={e => setFormData({...formData, childFamilyCount: parseInt(e.target.value) || 0})} 
-                className="w-full px-5 py-3.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl border-2 border-white bg-white focus:border-sky-400 outline-none shadow-sm font-black text-center text-lg" 
+                className="w-full px-4 py-2.5 rounded-xl border border-white bg-white focus:border-sky-400 outline-none shadow-sm font-black text-center text-base" 
               />
             </div>
           </div>
 
-          <div className={`p-6 sm:p-8 rounded-[1rem] sm:rounded-[1.5rem] text-center font-black text-base sm:text-lg transition-all border-2 ${neededSlots === 0 ? 'bg-gray-50 border-gray-100 text-gray-400' : isOverflow ? 'bg-red-50 border-red-200 text-red-600 animate-pulse' : 'bg-sky-500 text-white border-sky-600 shadow-xl shadow-sky-200'}`}>
-            {neededSlots === 0 ? "请完善上方报名信息" : `合计占用 ${neededSlots} 个席位`}
-            {isOverflow && " (名额溢出)"}
-          </div>
-
-          <div className="space-y-4">
+          <div className="space-y-3">
             <button 
               disabled={isSubmitting || isOverflow || remainingSlots <= 0 || isDeadlinePassed || !hasStartedFilling}
               type="submit"
-              className={`w-full font-black py-4 sm:py-6 rounded-xl sm:rounded-[2rem] transition-all flex items-center justify-center gap-3 text-lg sm:text-2xl shadow-xl active:scale-[0.98] uppercase tracking-tighter ${
+              className={`w-full font-black py-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1 text-base sm:text-lg shadow-lg active:scale-[0.98] uppercase tracking-tight ${
                 isOverflow || remainingSlots <= 0 || isDeadlinePassed || !hasStartedFilling
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none' 
-                : editMode ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-200' : 'bg-gray-900 text-white hover:bg-black hover:shadow-2xl shadow-gray-200'
+                : editMode ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-sky-500 text-white hover:bg-sky-600'
               }`}
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5 sm:h-6 sm:w-6 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  同步中...
+                  正在同步...
                 </span>
-              ) : editMode ? '确认修改 (仅限1次)' : '锁定团建名额'}
+              ) : (
+                <>
+                  <span>{editMode ? '确认修改' : isOverflow ? '名额不足' : '锁定席位'}</span>
+                  {neededSlots > 0 && !isOverflow && (
+                    <span className="text-[10px] opacity-80 tracking-widest">合计占用 {neededSlots} 个名额</span>
+                  )}
+                </>
+              )}
             </button>
             
             <button 
               type="button"
               onClick={onSuccess}
-              className="w-full text-center text-gray-400 text-[10px] sm:text-xs font-black uppercase tracking-widest hover:text-gray-600 transition-colors py-2"
+              className="w-full text-center text-gray-400 text-[10px] font-black uppercase tracking-widest hover:text-gray-600 transition-colors py-2"
             >
-              取消返回
+              取消并返回
             </button>
           </div>
         </form>

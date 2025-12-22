@@ -2,6 +2,7 @@
 export interface Registration {
   id: string;
   name: string;
+  englishName: string;
   phone: string;
   adultFamilyCount: number;
   childFamilyCount: number;

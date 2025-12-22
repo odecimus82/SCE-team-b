@@ -68,7 +68,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore }) => {
 
           <p className="text-[11px] sm:text-base text-gray-600 max-w-lg mx-auto lg:mx-0 font-medium leading-snug">
             探索华为 <span className="text-gray-900 font-bold underline decoration-sky-400 decoration-2">“溪村”</span> 艺术之巅。
-            <span className="text-red-500 font-bold block mt-1 text-[9px] sm:text-xs">※ 受园区限制，仅 21 席。</span>
+            <span className="text-red-500 font-bold block mt-1 text-[9px] sm:text-xs">※ 仅 21 席。</span>
           </p>
           
           <div className="flex flex-col sm:flex-row gap-2 justify-center lg:justify-start pt-2">
