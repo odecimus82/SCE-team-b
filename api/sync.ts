@@ -1,9 +1,11 @@
+
 import { kv } from '@vercel/kv';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const REG_KEY = 'corsair_2026_registrations';
   const CAMPUS_KEY = 'corsair_2026_campus_info';
+  const CONFIG_KEY = 'corsair_2026_app_config';
 
   const isKvConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
@@ -12,20 +14,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ error: 'KV not configured', registrations: [], campus: [] });
     }
 
-    // 处理 GET 请求：获取数据
     if (req.method === 'GET') {
       const { type } = req.query;
       if (type === 'campus') {
         const data = await kv.get(CAMPUS_KEY);
         return res.status(200).json(data || []);
       }
+      if (type === 'config') {
+        const data = await kv.get(CONFIG_KEY);
+        return res.status(200).json(data || { isRegistrationOpen: true, deadline: 1735207200000 });
+      }
       const data = await kv.get(REG_KEY);
       return res.status(200).json(data || []);
     }
 
-    // 处理 POST 请求：更新数据
     if (req.method === 'POST') {
-      const { type, registration, campusData } = req.body;
+      const { type, registration, campusData, config } = req.body;
+
+      if (type === 'config' && config) {
+        await kv.set(CONFIG_KEY, config);
+        return res.status(200).json({ success: true });
+      }
 
       if (type === 'campus' && campusData) {
         await kv.set(CAMPUS_KEY, campusData);
@@ -51,7 +60,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { password } = req.body;
       if (password === 'sce2026') {
         await kv.del(REG_KEY);
-        // 不删除指南数据，防止误删配置
         return res.status(200).json({ success: true });
       }
       return res.status(403).json({ error: 'Forbidden' });

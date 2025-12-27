@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MAX_CAPACITY_TARGET, REGISTRATION_DEADLINE } from '../constants';
-import { Registration } from '../types';
+import { MAX_CAPACITY_TARGET } from '../constants';
+import { Registration, AppConfig } from '../types';
 
 interface Props {
   onRegister: () => void;
@@ -13,6 +14,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
   const [currentCount, setCurrentCount] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [ownReg, setOwnReg] = useState<Registration | null>(null);
+  const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now() + 86400000 });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,6 +24,9 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
         
         const reg = await storageService.getOwnRegistration();
         setOwnReg(reg);
+
+        const appConfig = await storageService.fetchConfig();
+        setConfig(appConfig);
       } catch (error) {
         console.error("Failed to fetch home view data:", error);
       }
@@ -35,10 +40,11 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
     return () => clearInterval(timer);
   }, []);
 
-  const isDeadlinePassed = now > REGISTRATION_DEADLINE;
-  // 进度条百分比，如果超过目标值则显示 100%
-  const progressPercent = Math.min((currentCount / MAX_CAPACITY_TARGET) * 100, 100);
+  const isDeadlinePassed = now > config.deadline;
+  const isBlockedByAdmin = !config.isRegistrationOpen;
+  const canAct = !isDeadlinePassed && !isBlockedByAdmin;
   
+  const progressPercent = Math.min((currentCount / MAX_CAPACITY_TARGET) * 100, 100);
   const canEdit = ownReg && !ownReg.hasEdited;
   const heroImage = `https://wsrv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
 
@@ -52,7 +58,11 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
             </div>
             {isDeadlinePassed ? (
               <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black bg-red-600 text-white">
-                已截止
+                报名已截止
+              </div>
+            ) : isBlockedByAdmin ? (
+              <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black bg-amber-500 text-white">
+                暂停报名
               </div>
             ) : (
               <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black border bg-green-50 border-green-200 text-green-700">
@@ -80,25 +90,25 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
           </div>
 
           <p className="text-[11px] sm:text-base text-gray-600 max-w-lg mx-auto lg:mx-0 font-medium leading-snug">
-            探索华为 <span className="text-gray-900 font-bold underline decoration-sky-400 decoration-2">“溪村”</span> 艺术之巅。
-            <span className="text-sky-500 font-bold block mt-1 text-[9px] sm:text-xs">欢迎携带家属一同前往！</span>
+            探索华为 <span className="text-gray-900 font-bold underline decoration-sky-400 decoration-2">“溪村”</span> 艺术之巅。<br/>
+            截止日期：<span className="font-bold text-gray-900">{new Date(config.deadline).toLocaleString()}</span>
           </p>
           
           <div className="flex flex-col sm:flex-row gap-2 justify-center lg:justify-start pt-2">
             {ownReg ? (
               <button 
-                onClick={() => canEdit ? onEdit() : null}
-                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${canEdit ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                onClick={() => (canEdit && canAct) ? onEdit() : null}
+                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${canEdit && canAct ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-100 text-gray-400 cursor-default'}`}
               >
-                {canEdit ? '修改报名' : '已报名'}
+                {(!canAct && canEdit) ? '修改已关闭' : canEdit ? '修改报名' : '已完成报名'}
               </button>
             ) : (
               <button 
                 onClick={onRegister}
-                disabled={isDeadlinePassed}
-                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ !isDeadlinePassed ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                disabled={!canAct}
+                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ canAct ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
               >
-                {isDeadlinePassed ? '报名已截止' : '立即预约'}
+                {isDeadlinePassed ? '报名已截止' : isBlockedByAdmin ? '报名暂停中' : '立即预约'}
               </button>
             )}
             <button 

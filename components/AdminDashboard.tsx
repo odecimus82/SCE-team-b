@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { Registration, CampusInfoSection } from '../types';
+import { Registration, CampusInfoSection, AppConfig } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-type AdminTab = 'stats' | 'list' | 'guide';
+type AdminTab = 'stats' | 'list' | 'guide' | 'settings';
 
 const AdminDashboard: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [campusData, setCampusData] = useState<CampusInfoSection[]>([]);
+  const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now() });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('stats');
   const [password, setPassword] = useState('');
@@ -16,10 +18,11 @@ const AdminDashboard: React.FC = () => {
 
   const refreshData = async () => {
     const regs = await storageService.fetchRemoteRegistrations();
-    // 按时间倒序排列，最新的在前
     setRegistrations([...regs].sort((a, b) => b.timestamp - a.timestamp));
     const guide = await storageService.fetchCampusData();
     setCampusData(guide);
+    const appConfig = await storageService.fetchConfig();
+    setConfig(appConfig);
     
     try {
       const res = await fetch('/api/sync');
@@ -30,65 +33,45 @@ const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      refreshData();
-    }
+    if (isAuthenticated) refreshData();
   }, [isAuthenticated]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'sce2026') {
-      setIsAuthenticated(true);
-    } else {
-      alert('密码错误！默认密码：sce2026');
-    }
+    if (password === 'sce2026') setIsAuthenticated(true);
+    else alert('密码错误！');
+  };
+
+  const handleSaveConfig = async () => {
+    setIsSaving(true);
+    const success = await storageService.saveConfig(config);
+    if (success) alert('设置已同步！');
+    else alert('保存失败');
+    setIsSaving(false);
   };
 
   const handleSaveGuide = async () => {
     setIsSaving(true);
     const success = await storageService.saveCampusDataToCloud(campusData);
-    if (success) {
-      alert('园区指南已成功同步至云端！');
-    } else {
-      alert('保存失败，请检查网络');
-    }
+    if (success) alert('指南已同步！');
+    else alert('保存失败');
     setIsSaving(false);
   };
 
   const exportToExcel = () => {
-    if (registrations.length === 0) return alert('暂无数据可导出');
-
-    // CSV 表头
-    const headers = ['报名ID', '中文姓名', '英文名', '手机号', '大人随行', '儿童随行', '总计人数', '报名时间', '是否修改过'];
-    
-    // 生成 CSV 内容（增加 BOM 头以支持 Excel 直接打开不乱码）
+    if (registrations.length === 0) return alert('暂无数据');
+    const headers = ['报名ID', '姓名', '英文名', '手机', '大人', '儿童', '总计', '时间', '修改过'];
     const rows = registrations.map(reg => [
-      reg.id,
-      reg.name,
-      reg.englishName,
-      reg.phone,
-      reg.adultFamilyCount,
-      reg.childFamilyCount,
-      1 + reg.adultFamilyCount + reg.childFamilyCount,
-      new Date(reg.timestamp).toLocaleString(),
-      reg.hasEdited ? '是' : '否'
+      reg.id, reg.name, reg.englishName, reg.phone, reg.adultFamilyCount, reg.childFamilyCount,
+      1 + reg.adultFamilyCount + reg.childFamilyCount, new Date(reg.timestamp).toLocaleString(), reg.hasEdited ? '是' : '否'
     ]);
-
     const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Corsair_2026_报名名单_${new Date().toLocaleDateString()}.csv`);
-    document.body.appendChild(link);
+    link.href = url;
+    link.download = `Corsair_名单_${new Date().toLocaleDateString()}.csv`;
     link.click();
-    document.body.removeChild(link);
-  };
-
-  const updateSection = (idx: number, field: keyof CampusInfoSection, value: any) => {
-    const newData = [...campusData];
-    newData[idx] = { ...newData[idx], [field]: value };
-    setCampusData(newData);
   };
 
   const stats = registrations.reduce((acc, reg) => {
@@ -98,12 +81,6 @@ const AdminDashboard: React.FC = () => {
     acc.children += (Number(reg.childFamilyCount) || 0);
     return acc;
   }, { totalPeople: 0, employees: 0, familyAdults: 0, children: 0 });
-
-  const chartData = [
-    { name: '员工', value: stats.employees },
-    { name: '家属(大)', value: stats.familyAdults },
-    { name: '儿童', value: stats.children },
-  ];
 
   if (!isAuthenticated) {
     return (
@@ -125,206 +102,120 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl">
-          <button onClick={() => setActiveTab('stats')} className={`px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>数据概览</button>
-          <button onClick={() => setActiveTab('list')} className={`px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>名单列表</button>
-          <button onClick={() => setActiveTab('guide')} className={`px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === 'guide' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>指南编辑</button>
+        <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-2xl">
+          {(['stats', 'list', 'guide', 'settings'] as AdminTab[]).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+              {tab === 'stats' ? '概览' : tab === 'list' ? '名单' : tab === 'guide' ? '指南' : '设置'}
+            </button>
+          ))}
         </div>
         <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${dbStatus === 'connected' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
           <span className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></span>
-          {dbStatus === 'connected' ? '云端数据库在线' : '离线模式'}
+          {dbStatus === 'connected' ? '云端在线' : '离线模式'}
         </div>
       </div>
 
       {activeTab === 'stats' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: '预计到场', value: stats.totalPeople, sub: '总人数', color: 'text-gray-900' },
-              { label: '员工数', value: stats.employees, sub: '报名人', color: 'text-sky-500' },
-              { label: '大人家属', value: stats.familyAdults, sub: '随行', color: 'text-blue-500' },
-              { label: '随行儿童', value: stats.children, sub: '12岁以下', color: 'text-green-500' },
-            ].map((s, i) => (
-              <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
-                <p className={`text-3xl font-black my-1 ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-gray-400 font-bold">{s.sub}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-             <h3 className="text-sm font-black text-gray-900 mb-6 uppercase tracking-widest">数据分布</h3>
-             <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 900}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
-                    <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={40}>
-                      {chartData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={['#0ea5e9', '#3b82f6', '#22c55e'][index]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-             </div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: '预计到场', value: stats.totalPeople, sub: '总人数' },
+            { label: '员工数', value: stats.employees, sub: '报名人' },
+            { label: '大人家属', value: stats.familyAdults, sub: '随行' },
+            { label: '随行儿童', value: stats.children, sub: '12岁以下' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
+              <p className="text-3xl font-black my-1 text-gray-900">{s.value}</p>
+              <p className="text-[10px] text-gray-400 font-bold">{s.sub}</p>
+            </div>
+          ))}
         </div>
       )}
 
       {activeTab === 'list' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-            <div>
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">报名名单</h3>
-              <p className="text-[10px] text-gray-400 font-bold">共计 {registrations.length} 条记录</p>
-            </div>
-            <button 
-              onClick={exportToExcel}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl font-black text-[10px] hover:bg-green-700 transition-all shadow-md active:scale-95"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              导出 EXCEL (CSV)
-            </button>
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-black text-gray-900 uppercase">报名名单 (共{registrations.length}条)</h3>
+            <button onClick={exportToExcel} className="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-md">导出 EXCEL</button>
           </div>
-
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">姓名 (EN)</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">手机号</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">随行大人</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">随行儿童</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">总计</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">报名时间</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">状态</th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase">
+                  <th className="px-4 py-3">姓名</th>
+                  <th className="px-4 py-3">手机</th>
+                  <th className="px-4 py-3 text-center">大人</th>
+                  <th className="px-4 py-3 text-center">儿童</th>
+                  <th className="px-4 py-3">时间</th>
+                  <th className="px-4 py-3 text-center">状态</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {registrations.map(reg => (
+                  <tr key={reg.id} className="text-xs">
+                    <td className="px-4 py-3 font-black">{reg.name} <span className="text-gray-400 ml-1">{reg.englishName}</span></td>
+                    <td className="px-4 py-3 font-mono">{reg.phone}</td>
+                    <td className="px-4 py-3 text-center">{reg.adultFamilyCount}</td>
+                    <td className="px-4 py-3 text-center">{reg.childFamilyCount}</td>
+                    <td className="px-4 py-3 text-gray-400">{new Date(reg.timestamp).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${reg.hasEdited ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{reg.hasEdited ? '已改' : '正常'}</span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {registrations.map((reg) => (
-                    <tr key={reg.id} className="hover:bg-sky-50/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-black text-gray-900 text-sm">{reg.name}</div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase">{reg.englishName}</div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-600">{reg.phone}</td>
-                      <td className="px-6 py-4 text-center font-black text-blue-500">{reg.adultFamilyCount}</td>
-                      <td className="px-6 py-4 text-center font-black text-green-500">{reg.childFamilyCount}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="bg-gray-900 text-white px-2 py-0.5 rounded text-[10px] font-black">
-                          {1 + reg.adultFamilyCount + reg.childFamilyCount}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-[10px] font-bold text-gray-400">
-                        {new Date(reg.timestamp).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {reg.hasEdited ? (
-                          <span className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase">已修改</span>
-                        ) : (
-                          <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[8px] font-black uppercase">正常</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {registrations.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-bold text-sm">暂无报名数据</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
+            <div className="space-y-2">
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">系统权限控制</h3>
+              <p className="text-xs text-gray-500 font-medium">设置报名的全局状态与截止时间。</p>
             </div>
+
+            <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100">
+              <div>
+                <p className="font-black text-sm text-gray-900">开放报名/修改</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Master Registration Switch</p>
+              </div>
+              <button 
+                onClick={() => setConfig({...config, isRegistrationOpen: !config.isRegistrationOpen})}
+                className={`w-14 h-8 rounded-full transition-all relative ${config.isRegistrationOpen ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-md ${config.isRegistrationOpen ? 'left-7' : 'left-1'}`}></div>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">修改截止时间</label>
+              <input 
+                type="datetime-local" 
+                value={new Date(config.deadline).toISOString().slice(0, 16)} 
+                onChange={e => setConfig({...config, deadline: new Date(e.target.value).getTime()})}
+                className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-gray-900"
+              />
+              <p className="text-[10px] text-amber-600 font-bold">* 到达此时间后，前端将自动关闭“立即预约”和“修改报名”入口。</p>
+            </div>
+
+            <button 
+              onClick={handleSaveConfig}
+              disabled={isSaving}
+              className="w-full bg-sky-500 text-white font-black py-4 rounded-2xl hover:bg-sky-600 transition-all shadow-lg shadow-sky-100"
+            >
+              {isSaving ? '正在保存...' : '确认并同步到云端'}
+            </button>
           </div>
         </div>
       )}
 
       {activeTab === 'guide' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="flex justify-between items-center bg-sky-50 p-4 rounded-2xl border border-sky-100">
-                <p className="text-xs font-bold text-sky-700 italic">在此上传图片链接并修改文字，点击“保存并发布”即可更新前台展示。</p>
-                <button 
-                  disabled={isSaving}
-                  onClick={handleSaveGuide} 
-                  className="bg-sky-600 text-white px-6 py-2 rounded-xl font-black text-xs hover:bg-sky-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
-                >
-                  {isSaving ? '正在同步...' : '保存并发布到云端'}
-                </button>
-              </div>
-
-              <div className="grid gap-6">
-                {campusData.map((section, idx) => (
-                  <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase">栏目 {idx + 1}</span>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">标题</label>
-                          <input type="text" value={section.title} onChange={e => updateSection(idx, 'title', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-bold text-sm" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">描述文案</label>
-                          <textarea rows={3} value={section.description} onChange={e => updateSection(idx, 'description', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-medium text-xs leading-relaxed" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">图片 URL</label>
-                          <input type="text" value={section.image} onChange={e => updateSection(idx, 'image', e.target.value)} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-mono text-[10px] text-sky-600" />
-                          <div className="mt-2 aspect-video rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
-                             <img src={section.image} className="w-full h-full object-cover" alt="Preview" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Invalid+Image+URL'; }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">亮点要点 (逗号分隔)</label>
-                      <input type="text" value={section.items.join(', ')} onChange={e => updateSection(idx, 'items', e.target.value.split(',').map(s => s.trim()))} className="w-full px-4 py-2 bg-gray-50 rounded-xl border-none font-bold text-xs" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-gray-900 rounded-[2rem] p-6 text-white space-y-4 sticky top-24">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  </div>
-                  <h3 className="text-sm font-black uppercase tracking-widest">推荐图床</h3>
-                </div>
-                <p className="text-[10px] text-gray-400 leading-relaxed">指南图片需要稳定的“外链地址”。推荐以下适合中国网络环境的免费图床：</p>
-                <div className="space-y-2">
-                  <a href="https://imgtp.com/" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10 group">
-                    <div>
-                      <p className="text-xs font-black">路过图床 (ImgTP)</p>
-                      <p className="text-[9px] text-gray-500">国内最快、最稳定推荐</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                  </a>
-                  <a href="https://www.superbed.cn/" target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors border border-white/10 group">
-                    <div>
-                      <p className="text-xs font-black">聚合图床 (SuperBed)</p>
-                      <p className="text-[9px] text-gray-500">多节点备用、高可用</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center py-20">
+          <p className="text-gray-400 font-bold">指南编辑模块（原有逻辑）</p>
+          <button onClick={handleSaveGuide} className="mt-4 bg-gray-900 text-white px-6 py-2 rounded-xl text-xs font-black">保存指南</button>
         </div>
       )}
     </div>

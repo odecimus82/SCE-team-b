@@ -10,6 +10,11 @@ export interface Registration {
   hasEdited?: boolean;
 }
 
+export interface AppConfig {
+  isRegistrationOpen: boolean;
+  deadline: number;
+}
+
 export type AppView = 'home' | 'register' | 'info' | 'admin' | 'edit';
 
 export interface CampusInfoSection {
