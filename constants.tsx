@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // 品牌颜色配置
@@ -15,8 +16,9 @@ export const REGISTRATION_DEADLINE = new Date('2025-12-26T18:00:00').getTime();
 
 export const EVENT_DETAILS = {
   date: '2026-01-10',
-  location: '东莞松山湖 · 华为溪流背坡村 (Ox Horn Village)',
-  itinerary: '上午 9:00 - 下午 2:00',
+  location: '东莞松山湖 · 华为溪流背坡村 F区 (Ox Horn Village)',
+  meetingTime: '09:30',
+  itinerary: '上午 9:30 准时入园 - 下午 2:00',
 };
 
 /**

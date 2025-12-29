@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { Registration, AppConfig } from '../types';
+import { EVENT_DETAILS } from '../constants';
 
 interface Props {
   onRegister: () => void;
@@ -44,7 +45,6 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
   const isFull = currentCount >= config.maxCapacity;
   const canAct = !isDeadlinePassed && !isBlockedByAdmin;
   
-  // 核心修改：移除 hasEdited 检查，只要有本地记录就能修改
   const hasOwnReg = !!ownReg;
   
   const progressPercent = Math.min((currentCount / config.maxCapacity) * 100, 100);
@@ -85,6 +85,22 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
             <p className="text-xs sm:text-base font-bold text-gray-400 italic mt-1">Huawei European Campus Expedition</p>
           </div>
 
+          {/* 入园提醒卡片 */}
+          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-2xl shadow-sm text-left max-w-lg mx-auto lg:mx-0">
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              <span className="text-[10px] sm:text-xs font-black text-amber-800 uppercase tracking-widest">重要：入园集合提醒</span>
+            </div>
+            <p className="text-sm sm:text-base text-amber-900 font-bold leading-tight">
+              集合地点：<span className="underline decoration-amber-300">溪流背坡村 F区</span>
+            </p>
+            <p className="text-[10px] sm:text-xs text-amber-700 mt-1 font-medium">
+              请于 <span className="text-amber-900 font-black">09:30</span> 前到达。因园区需统一预约扫码，<span className="bg-amber-200 px-1 rounded">请务必准时，需全员集合后整体进入</span>。
+            </p>
+          </div>
+
           <div className="max-w-xs mx-auto lg:mx-0 space-y-1">
             <div className="flex justify-between text-[8px] sm:text-[10px] font-black text-gray-700 uppercase tracking-widest">
               <span>已报名总人数</span>
@@ -101,7 +117,6 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-2 justify-center lg:justify-start pt-2">
-            {/* 逻辑优化：如果已报名，直接显示修改；如果没有，显示预约 */}
             {hasOwnReg ? (
               <button 
                 onClick={() => canAct ? onEdit() : null}
@@ -118,7 +133,6 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
                 >
                   {isDeadlinePassed ? '报名已截止' : isBlockedByAdmin ? '报名暂停中' : isFull ? '名额已满' : '立即预约'}
                 </button>
-                {/* 增加一个显式的修改入口，应对换设备的情况 */}
                 {!isDeadlinePassed && !isBlockedByAdmin && (
                   <button 
                     onClick={onEdit}
@@ -144,7 +158,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
             <div className="absolute bottom-3 left-3 sm:bottom-6 sm:left-6 text-white">
               <h3 className="text-base sm:text-2xl font-black uppercase tracking-tight">Ox Horn Village</h3>
-              <p className="text-[8px] sm:text-xs text-sky-300 font-bold uppercase tracking-widest">华为东莞研发中心</p>
+              <p className="text-[8px] sm:text-xs text-sky-300 font-bold uppercase tracking-widest">华为东莞研发中心 · F区</p>
             </div>
           </div>
         </div>
