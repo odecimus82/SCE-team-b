@@ -64,13 +64,14 @@ export const storageService = {
     return [];
   },
 
-  addLog: async (userName: string, action: 'create' | 'update'): Promise<void> => {
+  addLog: async (userName: string, action: 'create' | 'update', details?: string): Promise<void> => {
     try {
       const log: EditLog = {
         id: Math.random().toString(36).substr(2, 9),
         userName,
         timestamp: Date.now(),
-        action
+        action,
+        details
       };
       await fetch(SYNC_API, {
         method: 'POST',
@@ -91,31 +92,27 @@ export const storageService = {
     return DEFAULT_CAMPUS_DATA;
   },
 
-  saveCampusDataToCloud: async (data: CampusInfoSection[]): Promise<boolean> => {
-    try {
-      const res = await fetch(SYNC_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'campus', campusData: data })
-      });
-      return res.ok;
-    } catch (e) {
-      return false;
-    }
-  },
-
   saveRegistration: async (data: Omit<Registration, 'id' | 'timestamp' | 'hasEdited'>): Promise<Registration> => {
     const remoteData = await storageService.fetchRemoteRegistrations();
     const existing = remoteData.find(r => r.name.trim() === data.name.trim());
     
     if (existing) {
+      // 计算差异
+      const diff: string[] = [];
+      if (existing.englishName !== data.englishName) diff.push(`英文名: ${existing.englishName || '-'} -> ${data.englishName || '-'}`);
+      if (existing.phone !== data.phone) diff.push(`手机: ${existing.phone} -> ${data.phone}`);
+      if (existing.adultFamilyCount !== data.adultFamilyCount) diff.push(`大人: ${existing.adultFamilyCount} -> ${data.adultFamilyCount}`);
+      if (existing.childFamilyCount !== data.childFamilyCount) diff.push(`儿童: ${existing.childFamilyCount} -> ${data.childFamilyCount}`);
+      
+      const details = diff.length > 0 ? diff.join(' | ') : '无关键字段变动';
+
       const updated = { ...existing, ...data, hasEdited: true, timestamp: Date.now() };
       await fetch(SYNC_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registration: updated })
       });
-      await storageService.addLog(data.name, 'update');
+      await storageService.addLog(data.name, 'update', details);
       localStorage.setItem(OWN_REG_ID_KEY, existing.id);
       return updated;
     }
@@ -129,7 +126,7 @@ export const storageService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registration: newReg })
       });
-      await storageService.addLog(data.name, 'create');
+      await storageService.addLog(data.name, 'create', `初始报名: 总人数 ${1 + data.adultFamilyCount + data.childFamilyCount}`);
     } catch (e) {}
     return newReg;
   },
@@ -139,26 +136,6 @@ export const storageService = {
     if (!id) return null;
     const data = await storageService.fetchRemoteRegistrations();
     return data.find(r => r.id === id) || null;
-  },
-
-  updateRegistration: async (id: string, data: Partial<Registration>): Promise<boolean> => {
-    const remoteData = await storageService.fetchRemoteRegistrations();
-    const index = remoteData.findIndex(r => r.id === id);
-    if (index !== -1) {
-      const updated = { ...remoteData[index], ...data, hasEdited: true, timestamp: Date.now() };
-      try {
-        const res = await fetch(SYNC_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ registration: updated })
-        });
-        if (res.ok) {
-          await storageService.addLog(updated.name, 'update');
-        }
-        return res.ok;
-      } catch (e) {}
-    }
-    return false;
   },
 
   calculateTotalCount: (regs: Registration[]): number => {

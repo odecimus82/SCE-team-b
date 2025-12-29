@@ -15,6 +15,7 @@ export interface EditLog {
   userName: string;
   timestamp: number;
   action: 'create' | 'update';
+  details?: string; // 存储修改的具体内容差异
 }
 
 export interface AppConfig {

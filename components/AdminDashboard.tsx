@@ -62,7 +62,6 @@ const AdminDashboard: React.FC = () => {
   const exportToCSV = () => {
     if (registrations.length === 0) return alert('当前没有可导出的数据');
     
-    // 准备 CSV 内容，包含 BOM 头以防 Excel 乱码
     const headers = ['报名ID', '姓名', '英文名', '手机号', '随行大人', '随行儿童', '总人数', '最后更新时间', '修改状态'];
     const rows = registrations.map(reg => [
       reg.id,
@@ -230,35 +229,53 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
           <div className="flex justify-between items-center border-b pb-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-black text-gray-900 uppercase">修改提醒日志 (实时间隔)</h3>
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Recent Activity Feed</p>
+              <h3 className="text-sm font-black text-gray-900 uppercase">修改提醒日志 (含具体变动内容)</h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Modification Details Feed</p>
             </div>
-            <button onClick={refreshData} className="text-sky-500 font-black text-xs hover:bg-sky-50 px-3 py-1 rounded-lg transition-colors">强制刷新日志</button>
+            <button onClick={refreshData} className="text-sky-500 font-black text-xs hover:bg-sky-50 px-3 py-1 rounded-lg transition-colors">强制刷新</button>
           </div>
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
             {logs.length === 0 ? (
               <div className="py-20 text-center text-gray-400 font-bold">目前还没有任何修改记录</div>
             ) : (
               logs.map(log => (
-                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-sky-100 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${log.action === 'create' ? 'bg-green-500' : 'bg-amber-500'}`}>
-                      {log.action === 'create' ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                      )}
+                <div key={log.id} className="flex flex-col gap-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-sky-100 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${log.action === 'create' ? 'bg-green-500' : 'bg-amber-500'}`}>
+                        {log.action === 'create' ? (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-gray-900">
+                          {log.userName} <span className="text-gray-400 font-medium">{log.action === 'create' ? '完成了报名' : '修改了信息'}</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{new Date(log.timestamp).toLocaleString()}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-black text-gray-900">
-                        {log.userName} <span className="text-gray-400 font-medium">{log.action === 'create' ? '完成了报名提交' : '执行了信息变更'}</span>
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{new Date(log.timestamp).toLocaleString()}</p>
+                    <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${log.action === 'create' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}`}>
+                      {log.action === 'create' ? 'SUCCESS' : 'UPDATED'}
                     </div>
                   </div>
-                  <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${log.action === 'create' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}`}>
-                    {log.action === 'create' ? 'SUCCESS' : 'UPDATED'}
-                  </div>
+                  {log.details && (
+                    <div className="mt-1 pl-12">
+                      <div className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span> 变更详情
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {log.details.split(' | ').map((d, i) => (
+                            <span key={i} className="px-2 py-1 bg-slate-50 text-gray-600 rounded-lg text-[10px] font-bold border border-slate-100">
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
