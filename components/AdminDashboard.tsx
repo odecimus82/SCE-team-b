@@ -59,6 +59,33 @@ const AdminDashboard: React.FC = () => {
     setIsSaving(false);
   };
 
+  const exportToCSV = () => {
+    if (registrations.length === 0) return alert('当前没有可导出的数据');
+    
+    // 准备 CSV 内容，包含 BOM 头以防 Excel 乱码
+    const headers = ['报名ID', '姓名', '英文名', '手机号', '随行大人', '随行儿童', '总人数', '最后更新时间', '修改状态'];
+    const rows = registrations.map(reg => [
+      reg.id,
+      reg.name,
+      reg.englishName || '-',
+      reg.phone,
+      reg.adultFamilyCount,
+      reg.childFamilyCount,
+      1 + reg.adultFamilyCount + reg.childFamilyCount,
+      new Date(reg.timestamp).toLocaleString(),
+      reg.hasEdited ? '已修改' : '初始报名'
+    ]);
+    
+    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.map(val => `"${val}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Corsair_2026_报名详情_${new Date().toLocaleDateString()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const stats = registrations.reduce((acc, reg) => {
     acc.totalPeople += 1 + (Number(reg.adultFamilyCount) || 0) + (Number(reg.childFamilyCount) || 0);
     acc.employees += 1;
@@ -90,9 +117,9 @@ const AdminDashboard: React.FC = () => {
         <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-2xl">
           {[
             { id: 'stats', label: '概览' },
-            { id: 'list', label: '名单' },
+            { id: 'list', label: '详细名单' },
             { id: 'logs', label: '修改提醒' },
-            { id: 'settings', label: '设置' },
+            { id: 'settings', label: '系统设置' },
             { id: 'guide', label: '指南' }
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as AdminTab)} className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
@@ -105,21 +132,21 @@ const AdminDashboard: React.FC = () => {
         </div>
         <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5 ${dbStatus === 'connected' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
           <span className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`}></span>
-          {dbStatus === 'connected' ? '云端在线' : '离线模式'}
+          {dbStatus === 'connected' ? '云端同步中' : '离线模式'}
         </div>
       </div>
 
       {activeTab === 'stats' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: '预计到场', value: stats.totalPeople, sub: `目标上限: ${config.maxCapacity}` },
-            { label: '员工数', value: stats.employees, sub: '有效报名' },
-            { label: '大人家属', value: stats.familyAdults, sub: '随行' },
-            { label: '随行儿童', value: stats.children, sub: '12岁以下' },
+            { label: '预计到场总计', value: stats.totalPeople, sub: `报名上限: ${config.maxCapacity}`, color: 'text-sky-500' },
+            { label: 'Corsair 员工', value: stats.employees, sub: '主报名人', color: 'text-gray-900' },
+            { label: '大人家属', value: stats.familyAdults, sub: '不含员工本人', color: 'text-gray-700' },
+            { label: '随行儿童', value: stats.children, sub: '12岁以下', color: 'text-gray-500' },
           ].map((s, i) => (
             <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
-              <p className="text-3xl font-black my-1 text-gray-900">{s.value}</p>
+              <p className={`text-3xl font-black my-1 ${s.color}`}>{s.value}</p>
               <p className="text-[10px] text-gray-400 font-bold">{s.sub}</p>
             </div>
           ))}
@@ -128,32 +155,71 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'list' && (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-black text-gray-900 uppercase">报名名单 (共{registrations.length}条)</h3>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-black text-gray-900 uppercase">报名人员详细清单 (共{registrations.length}条记录)</h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Full List of Registered Participants</p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={refreshData}
+                className="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-gray-200 transition-colors"
+              >
+                刷新数据
+              </button>
+              <button 
+                onClick={exportToCSV}
+                className="bg-green-600 text-white px-5 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-green-100 hover:bg-green-700 transition-all flex items-center gap-2"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                导出 CSV 名单
+              </button>
+            </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-gray-50">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase">
-                  <th className="px-4 py-3">姓名</th>
-                  <th className="px-4 py-3">手机</th>
-                  <th className="px-4 py-3 text-center">人数</th>
-                  <th className="px-4 py-3">最后更新</th>
-                  <th className="px-4 py-3 text-center">状态</th>
+                <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase">
+                  <th className="px-4 py-3 border-b">姓名 / 英文名</th>
+                  <th className="px-4 py-3 border-b">联系手机</th>
+                  <th className="px-4 py-3 border-b text-center">大人</th>
+                  <th className="px-4 py-3 border-b text-center">儿童</th>
+                  <th className="px-4 py-3 border-b text-center">总计</th>
+                  <th className="px-4 py-3 border-b">最后提交时间</th>
+                  <th className="px-4 py-3 border-b text-center">状态</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {registrations.map(reg => (
-                  <tr key={reg.id} className="text-xs">
-                    <td className="px-4 py-3 font-black">{reg.name} <span className="text-gray-400 ml-1">{reg.englishName}</span></td>
-                    <td className="px-4 py-3 font-mono">{reg.phone}</td>
-                    <td className="px-4 py-3 text-center">{1 + reg.adultFamilyCount + reg.childFamilyCount}</td>
-                    <td className="px-4 py-3 text-gray-400">{new Date(reg.timestamp).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${reg.hasEdited ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{reg.hasEdited ? '已修改' : '初始'}</span>
-                    </td>
+                {registrations.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-20 text-center text-gray-400 font-bold italic">暂无报名信息</td>
                   </tr>
-                ))}
+                ) : (
+                  registrations.map(reg => (
+                    <tr key={reg.id} className="text-xs hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <div className="font-black text-gray-900">{reg.name}</div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase">{reg.englishName}</div>
+                      </td>
+                      <td className="px-4 py-4 font-mono font-bold text-sky-600">{reg.phone}</td>
+                      <td className="px-4 py-4 text-center font-bold text-gray-700">{reg.adultFamilyCount}</td>
+                      <td className="px-4 py-4 text-center font-bold text-gray-700">{reg.childFamilyCount}</td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="bg-gray-900 text-white px-2 py-0.5 rounded text-[10px] font-black">
+                          {1 + reg.adultFamilyCount + reg.childFamilyCount}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-gray-400 font-medium">
+                        {new Date(reg.timestamp).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${reg.hasEdited ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
+                          {reg.hasEdited ? '已修改' : '初始'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -163,28 +229,35 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'logs' && (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
           <div className="flex justify-between items-center border-b pb-4">
-            <h3 className="text-sm font-black text-gray-900 uppercase">修改历史提醒 (近500条记录)</h3>
-            <button onClick={refreshData} className="text-sky-500 font-bold text-xs hover:underline">刷新列表</button>
+            <div className="space-y-1">
+              <h3 className="text-sm font-black text-gray-900 uppercase">修改提醒日志 (实时间隔)</h3>
+              <p className="text-[10px] text-gray-400 font-bold uppercase">Recent Activity Feed</p>
+            </div>
+            <button onClick={refreshData} className="text-sky-500 font-black text-xs hover:bg-sky-50 px-3 py-1 rounded-lg transition-colors">强制刷新日志</button>
           </div>
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
             {logs.length === 0 ? (
-              <div className="py-20 text-center text-gray-400 font-bold">暂无修改记录</div>
+              <div className="py-20 text-center text-gray-400 font-bold">目前还没有任何修改记录</div>
             ) : (
               logs.map(log => (
-                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-sky-100 transition-all">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${log.action === 'create' ? 'bg-green-500' : 'bg-amber-500'}`}>
-                      {log.action === 'create' ? '入' : '改'}
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-sm ${log.action === 'create' ? 'bg-green-500' : 'bg-amber-500'}`}>
+                      {log.action === 'create' ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-black text-gray-900">
-                        {log.userName} <span className="text-gray-400 font-normal">{log.action === 'create' ? '完成了首次报名' : '修改了报名信息'}</span>
+                        {log.userName} <span className="text-gray-400 font-medium">{log.action === 'create' ? '完成了报名提交' : '执行了信息变更'}</span>
                       </p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(log.timestamp).toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{new Date(log.timestamp).toLocaleString()}</p>
                     </div>
                   </div>
-                  <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${log.action === 'create' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}`}>
-                    {log.action === 'create' ? 'NEW ENTRY' : 'MODIFIED'}
+                  <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${log.action === 'create' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}`}>
+                    {log.action === 'create' ? 'SUCCESS' : 'UPDATED'}
                   </div>
                 </div>
               ))
@@ -197,14 +270,14 @@ const AdminDashboard: React.FC = () => {
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
             <div className="space-y-2">
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">系统权限控制</h3>
-              <p className="text-xs text-gray-500 font-medium">设置报名的全局状态、截止时间及人数上限。</p>
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">系统权限与规则设置</h3>
+              <p className="text-xs text-gray-500 font-medium">配置全局开关、报名截止日期及人数上限阈值。</p>
             </div>
 
             <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100">
               <div>
-                <p className="font-black text-sm text-gray-900">开放报名/修改</p>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">Master Registration Switch</p>
+                <p className="font-black text-sm text-gray-900">开放报名/修改入口</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Global Registration Status</p>
               </div>
               <button 
                 onClick={() => setConfig({...config, isRegistrationOpen: !config.isRegistrationOpen})}
@@ -216,22 +289,22 @@ const AdminDashboard: React.FC = () => {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">修改截止时间</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">修改截止截止时间</label>
                 <input 
                   type="datetime-local" 
                   value={new Date(config.deadline).toISOString().slice(0, 16)} 
                   onChange={e => setConfig({...config, deadline: new Date(e.target.value).getTime()})}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-gray-900"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-gray-900 focus:ring-2 focus:ring-sky-100 transition-all outline-none"
                 />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">报名人数上限</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">预计报名人数上限</label>
                 <input 
                   type="number" 
                   min="1"
                   value={config.maxCapacity} 
                   onChange={e => setConfig({...config, maxCapacity: parseInt(e.target.value) || 21})}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-black text-gray-900"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-black text-gray-900 focus:ring-2 focus:ring-sky-100 transition-all outline-none"
                 />
               </div>
             </div>
@@ -239,17 +312,21 @@ const AdminDashboard: React.FC = () => {
             <button 
               onClick={handleSaveConfig}
               disabled={isSaving}
-              className="w-full bg-sky-500 text-white font-black py-4 rounded-2xl hover:bg-sky-600 transition-all shadow-lg"
+              className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl hover:bg-black active:scale-95 transition-all shadow-lg shadow-gray-100"
             >
-              {isSaving ? '正在保存...' : '保存设置'}
+              {isSaving ? '正在同步云端设置...' : '保存系统设置'}
             </button>
           </div>
         </div>
       )}
 
       {activeTab === 'guide' && (
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center py-20">
-          <p className="text-gray-400 font-bold italic">指南内容实时同步中</p>
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center py-24 space-y-4">
+          <div className="w-20 h-20 bg-sky-50 text-sky-500 rounded-full flex items-center justify-center mx-auto mb-4">
+             <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+          </div>
+          <h3 className="text-xl font-black text-gray-900 uppercase">指南编辑系统</h3>
+          <p className="text-gray-400 font-bold max-w-md mx-auto italic">指南模块已与云端存储挂钩，当前内容已由前端组件渲染，后端控制功能稍后逐步开放。</p>
         </div>
       )}
     </div>
