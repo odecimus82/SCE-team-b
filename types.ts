@@ -13,6 +13,7 @@ export interface Registration {
 export interface AppConfig {
   isRegistrationOpen: boolean;
   deadline: number;
+  maxCapacity: number;
 }
 
 export type AppView = 'home' | 'register' | 'info' | 'admin' | 'edit';

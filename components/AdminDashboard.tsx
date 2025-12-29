@@ -9,7 +9,7 @@ type AdminTab = 'stats' | 'list' | 'guide' | 'settings';
 const AdminDashboard: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [campusData, setCampusData] = useState<CampusInfoSection[]>([]);
-  const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now() });
+  const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now(), maxCapacity: 21 });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('stats');
   const [password, setPassword] = useState('');
@@ -118,7 +118,7 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'stats' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: '预计到场', value: stats.totalPeople, sub: '总人数' },
+            { label: '预计到场', value: stats.totalPeople, sub: `目标上限: ${config.maxCapacity}` },
             { label: '员工数', value: stats.employees, sub: '报名人' },
             { label: '大人家属', value: stats.familyAdults, sub: '随行' },
             { label: '随行儿童', value: stats.children, sub: '12岁以下' },
@@ -174,7 +174,7 @@ const AdminDashboard: React.FC = () => {
           <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
             <div className="space-y-2">
               <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">系统权限控制</h3>
-              <p className="text-xs text-gray-500 font-medium">设置报名的全局状态与截止时间。</p>
+              <p className="text-xs text-gray-500 font-medium">设置报名的全局状态、截止时间及人数上限。</p>
             </div>
 
             <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100">
@@ -190,16 +190,29 @@ const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">修改截止时间</label>
-              <input 
-                type="datetime-local" 
-                value={new Date(config.deadline).toISOString().slice(0, 16)} 
-                onChange={e => setConfig({...config, deadline: new Date(e.target.value).getTime()})}
-                className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-gray-900"
-              />
-              <p className="text-[10px] text-amber-600 font-bold">* 到达此时间后，前端将自动关闭“立即预约”和“修改报名”入口。</p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">修改截止时间</label>
+                <input 
+                  type="datetime-local" 
+                  value={new Date(config.deadline).toISOString().slice(0, 16)} 
+                  onChange={e => setConfig({...config, deadline: new Date(e.target.value).getTime()})}
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-gray-900"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-1">报名人数上限</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  value={config.maxCapacity} 
+                  onChange={e => setConfig({...config, maxCapacity: parseInt(e.target.value) || 21})}
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-black text-gray-900"
+                />
+              </div>
             </div>
+
+            <p className="text-[10px] text-amber-600 font-bold">* 上限设置将直接影响首页进度条百分比。</p>
 
             <button 
               onClick={handleSaveConfig}

@@ -1,6 +1,6 @@
 
 import { Registration, CampusInfoSection, AppConfig } from '../types';
-import { CAMPUS_DATA as DEFAULT_CAMPUS_DATA, REGISTRATION_DEADLINE as DEFAULT_DEADLINE } from '../constants';
+import { CAMPUS_DATA as DEFAULT_CAMPUS_DATA, REGISTRATION_DEADLINE as DEFAULT_DEADLINE, MAX_CAPACITY_TARGET as DEFAULT_CAPACITY } from '../constants';
 
 const OWN_REG_ID_KEY = 'corsair_own_reg_id';
 const LOCAL_DATA_CACHE = 'corsair_registrations_cache';
@@ -14,11 +14,14 @@ export const storageService = {
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data.isRegistrationOpen === 'boolean') {
-          return data;
+          return {
+            ...data,
+            maxCapacity: data.maxCapacity || DEFAULT_CAPACITY
+          };
         }
       }
     } catch (e) {}
-    return { isRegistrationOpen: true, deadline: DEFAULT_DEADLINE };
+    return { isRegistrationOpen: true, deadline: DEFAULT_DEADLINE, maxCapacity: DEFAULT_CAPACITY };
   },
 
   // 保存全局配置
@@ -82,6 +85,7 @@ export const storageService = {
     const existing = remoteData.find(r => r.name.trim() === data.name.trim());
     
     if (existing) {
+      // 如果已经修改过，这里也可以做拦截，但用户要求匹配即修改
       const updated = { ...existing, ...data, hasEdited: true, timestamp: Date.now() };
       await fetch(SYNC_API, {
         method: 'POST',

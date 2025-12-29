@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MAX_CAPACITY_TARGET } from '../constants';
 import { Registration, AppConfig } from '../types';
 
 interface Props {
@@ -14,7 +13,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
   const [currentCount, setCurrentCount] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [ownReg, setOwnReg] = useState<Registration | null>(null);
-  const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now() + 86400000 });
+  const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now() + 86400000, maxCapacity: 21 });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,9 +41,10 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
 
   const isDeadlinePassed = now > config.deadline;
   const isBlockedByAdmin = !config.isRegistrationOpen;
+  const isFull = currentCount >= config.maxCapacity;
   const canAct = !isDeadlinePassed && !isBlockedByAdmin;
   
-  const progressPercent = Math.min((currentCount / MAX_CAPACITY_TARGET) * 100, 100);
+  const progressPercent = Math.min((currentCount / config.maxCapacity) * 100, 100);
   const canEdit = ownReg && !ownReg.hasEdited;
   const heroImage = `https://wsrv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
 
@@ -64,6 +64,10 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
               <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black bg-amber-500 text-white">
                 暂停报名
               </div>
+            ) : isFull ? (
+              <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black bg-sky-600 text-white animate-pulse">
+                名额已满
+              </div>
             ) : (
               <div className="px-2.5 py-0.5 rounded-full text-[8px] sm:text-[10px] font-black border bg-green-50 border-green-200 text-green-700">
                 火热报名中
@@ -82,7 +86,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
           <div className="max-w-xs mx-auto lg:mx-0 space-y-1">
             <div className="flex justify-between text-[8px] sm:text-[10px] font-black text-gray-700 uppercase tracking-widest">
               <span>已报名总人数</span>
-              <span>{currentCount} 人</span>
+              <span>{currentCount} / {config.maxCapacity}</span>
             </div>
             <div className="h-2.5 sm:h-3 bg-gray-200 rounded-full overflow-hidden p-0.5 border border-gray-900">
               <div className="h-full rounded-full transition-all duration-1000 bg-sky-500" style={{ width: `${progressPercent}%` }}></div>
@@ -108,7 +112,7 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
                 disabled={!canAct}
                 className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ canAct ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
               >
-                {isDeadlinePassed ? '报名已截止' : isBlockedByAdmin ? '报名暂停中' : '立即预约'}
+                {isDeadlinePassed ? '报名已截止' : isBlockedByAdmin ? '报名暂停中' : isFull ? '名额已满' : '立即预约'}
               </button>
             )}
             <button 
