@@ -44,8 +44,10 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
   const isFull = currentCount >= config.maxCapacity;
   const canAct = !isDeadlinePassed && !isBlockedByAdmin;
   
+  // 核心修改：移除 hasEdited 检查，只要有本地记录就能修改
+  const hasOwnReg = !!ownReg;
+  
   const progressPercent = Math.min((currentCount / config.maxCapacity) * 100, 100);
-  const canEdit = ownReg && !ownReg.hasEdited;
   const heroImage = `https://wsrv.nl/?url=${encodeURIComponent('https://images.unsplash.com/photo-1467269204594-9661b134dd2b')}&w=800&output=webp&q=70`;
 
   return (
@@ -95,25 +97,37 @@ const HomeView: React.FC<Props> = ({ onRegister, onExplore, onEdit }) => {
 
           <p className="text-[11px] sm:text-base text-gray-600 max-w-lg mx-auto lg:mx-0 font-medium leading-snug">
             探索华为 <span className="text-gray-900 font-bold underline decoration-sky-400 decoration-2">“溪村”</span> 艺术之巅。<br/>
-            截止日期：<span className="font-bold text-gray-900">{new Date(config.deadline).toLocaleString()}</span>
+            截止日期：<span className="font-bold text-gray-900">{new Date(config.deadline).toLocaleString('zh-CN', { hour12: true })}</span>
           </p>
           
           <div className="flex flex-col sm:flex-row gap-2 justify-center lg:justify-start pt-2">
-            {ownReg ? (
+            {/* 逻辑优化：如果已报名，直接显示修改；如果没有，显示预约 */}
+            {hasOwnReg ? (
               <button 
-                onClick={() => (canEdit && canAct) ? onEdit() : null}
-                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${canEdit && canAct ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-gray-100 text-gray-400 cursor-default'}`}
+                onClick={() => canAct ? onEdit() : null}
+                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${canAct ? 'bg-amber-500 text-white hover:bg-amber-600 active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
               >
-                {(!canAct && canEdit) ? '修改已关闭' : canEdit ? '修改报名' : '已完成报名'}
+                {canAct ? '修改报名' : '修改已关闭'}
               </button>
             ) : (
-              <button 
-                onClick={onRegister}
-                disabled={!canAct}
-                className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ canAct ? 'bg-sky-500 text-white hover:bg-sky-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-              >
-                {isDeadlinePassed ? '报名已截止' : isBlockedByAdmin ? '报名暂停中' : isFull ? '名额已满' : '立即预约'}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={onRegister}
+                  disabled={!canAct}
+                  className={`w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg transition-all shadow-md ${ canAct ? 'bg-sky-500 text-white hover:bg-sky-600 active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                >
+                  {isDeadlinePassed ? '报名已截止' : isBlockedByAdmin ? '报名暂停中' : isFull ? '名额已满' : '立即预约'}
+                </button>
+                {/* 增加一个显式的修改入口，应对换设备的情况 */}
+                {!isDeadlinePassed && !isBlockedByAdmin && (
+                  <button 
+                    onClick={onEdit}
+                    className="w-full sm:w-auto px-6 py-3 rounded-lg font-black text-sm sm:text-lg bg-white border-2 border-amber-500 text-amber-500 hover:bg-amber-50 transition-all shadow-sm"
+                  >
+                    修改信息
+                  </button>
+                )}
+              </div>
             )}
             <button 
               onClick={onExplore}
