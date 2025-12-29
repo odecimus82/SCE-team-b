@@ -6,12 +6,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const REG_KEY = 'corsair_2026_registrations';
   const CAMPUS_KEY = 'corsair_2026_campus_info';
   const CONFIG_KEY = 'corsair_2026_app_config';
+  const LOGS_KEY = 'corsair_2026_edit_logs';
 
   const isKvConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
   try {
     if (!isKvConfigured) {
-      return res.status(200).json({ error: 'KV not configured', registrations: [], campus: [] });
+      return res.status(200).json({ error: 'KV not configured', registrations: [], campus: [], logs: [] });
     }
 
     if (req.method === 'GET') {
@@ -24,15 +25,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = await kv.get(CONFIG_KEY);
         return res.status(200).json(data || { isRegistrationOpen: true, deadline: 1735207200000 });
       }
+      if (type === 'logs') {
+        const data = await kv.get(LOGS_KEY);
+        return res.status(200).json(data || []);
+      }
       const data = await kv.get(REG_KEY);
       return res.status(200).json(data || []);
     }
 
     if (req.method === 'POST') {
-      const { type, registration, campusData, config } = req.body;
+      const { type, registration, campusData, config, log } = req.body;
 
       if (type === 'config' && config) {
         await kv.set(CONFIG_KEY, config);
+        return res.status(200).json({ success: true });
+      }
+
+      if (type === 'logs' && log) {
+        const currentLogs: any[] = (await kv.get(LOGS_KEY)) || [];
+        currentLogs.unshift(log); // 保持最新在最前
+        if (currentLogs.length > 500) currentLogs.pop(); // 限制记录数量
+        await kv.set(LOGS_KEY, currentLogs);
         return res.status(200).json({ success: true });
       }
 
@@ -60,6 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { password } = req.body;
       if (password === 'sce2026') {
         await kv.del(REG_KEY);
+        await kv.del(LOGS_KEY);
         return res.status(200).json({ success: true });
       }
       return res.status(403).json({ error: 'Forbidden' });

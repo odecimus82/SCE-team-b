@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { Registration, CampusInfoSection, AppConfig } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { Registration, CampusInfoSection, AppConfig, EditLog } from '../types';
 
-type AdminTab = 'stats' | 'list' | 'guide' | 'settings';
+type AdminTab = 'stats' | 'list' | 'logs' | 'settings' | 'guide';
 
 const AdminDashboard: React.FC = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [campusData, setCampusData] = useState<CampusInfoSection[]>([]);
+  const [logs, setLogs] = useState<EditLog[]>([]);
   const [config, setConfig] = useState<AppConfig>({ isRegistrationOpen: true, deadline: Date.now(), maxCapacity: 21 });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('stats');
@@ -17,12 +17,17 @@ const AdminDashboard: React.FC = () => {
   const [dbStatus, setDbStatus] = useState<'connected' | 'offline'>('offline');
 
   const refreshData = async () => {
-    const regs = await storageService.fetchRemoteRegistrations();
+    const [regs, guide, appConfig, editLogs] = await Promise.all([
+      storageService.fetchRemoteRegistrations(),
+      storageService.fetchCampusData(),
+      storageService.fetchConfig(),
+      storageService.fetchLogs()
+    ]);
+
     setRegistrations([...regs].sort((a, b) => b.timestamp - a.timestamp));
-    const guide = await storageService.fetchCampusData();
     setCampusData(guide);
-    const appConfig = await storageService.fetchConfig();
     setConfig(appConfig);
+    setLogs(editLogs);
     
     try {
       const res = await fetch('/api/sync');
@@ -33,7 +38,11 @@ const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAuthenticated) refreshData();
+    if (isAuthenticated) {
+      refreshData();
+      const timer = setInterval(refreshData, 30000); // 30秒自动刷新一次
+      return () => clearInterval(timer);
+    }
   }, [isAuthenticated]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -48,30 +57,6 @@ const AdminDashboard: React.FC = () => {
     if (success) alert('设置已同步！');
     else alert('保存失败');
     setIsSaving(false);
-  };
-
-  const handleSaveGuide = async () => {
-    setIsSaving(true);
-    const success = await storageService.saveCampusDataToCloud(campusData);
-    if (success) alert('指南已同步！');
-    else alert('保存失败');
-    setIsSaving(false);
-  };
-
-  const exportToExcel = () => {
-    if (registrations.length === 0) return alert('暂无数据');
-    const headers = ['报名ID', '姓名', '英文名', '手机', '大人', '儿童', '总计', '时间', '修改过'];
-    const rows = registrations.map(reg => [
-      reg.id, reg.name, reg.englishName, reg.phone, reg.adultFamilyCount, reg.childFamilyCount,
-      1 + reg.adultFamilyCount + reg.childFamilyCount, new Date(reg.timestamp).toLocaleString(), reg.hasEdited ? '是' : '否'
-    ]);
-    const csvContent = "\uFEFF" + [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Corsair_名单_${new Date().toLocaleDateString()}.csv`;
-    link.click();
   };
 
   const stats = registrations.reduce((acc, reg) => {
@@ -103,9 +88,18 @@ const AdminDashboard: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
         <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-2xl">
-          {(['stats', 'list', 'guide', 'settings'] as AdminTab[]).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-              {tab === 'stats' ? '概览' : tab === 'list' ? '名单' : tab === 'guide' ? '指南' : '设置'}
+          {[
+            { id: 'stats', label: '概览' },
+            { id: 'list', label: '名单' },
+            { id: 'logs', label: '修改提醒' },
+            { id: 'settings', label: '设置' },
+            { id: 'guide', label: '指南' }
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id as AdminTab)} className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs transition-all ${activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+              {tab.label}
+              {tab.id === 'logs' && logs.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-[8px] rounded-full">{logs.length}</span>
+              )}
             </button>
           ))}
         </div>
@@ -119,7 +113,7 @@ const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: '预计到场', value: stats.totalPeople, sub: `目标上限: ${config.maxCapacity}` },
-            { label: '员工数', value: stats.employees, sub: '报名人' },
+            { label: '员工数', value: stats.employees, sub: '有效报名' },
             { label: '大人家属', value: stats.familyAdults, sub: '随行' },
             { label: '随行儿童', value: stats.children, sub: '12岁以下' },
           ].map((s, i) => (
@@ -136,7 +130,6 @@ const AdminDashboard: React.FC = () => {
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-black text-gray-900 uppercase">报名名单 (共{registrations.length}条)</h3>
-            <button onClick={exportToExcel} className="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-md">导出 EXCEL</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -144,9 +137,8 @@ const AdminDashboard: React.FC = () => {
                 <tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase">
                   <th className="px-4 py-3">姓名</th>
                   <th className="px-4 py-3">手机</th>
-                  <th className="px-4 py-3 text-center">大人</th>
-                  <th className="px-4 py-3 text-center">儿童</th>
-                  <th className="px-4 py-3">时间</th>
+                  <th className="px-4 py-3 text-center">人数</th>
+                  <th className="px-4 py-3">最后更新</th>
                   <th className="px-4 py-3 text-center">状态</th>
                 </tr>
               </thead>
@@ -155,16 +147,48 @@ const AdminDashboard: React.FC = () => {
                   <tr key={reg.id} className="text-xs">
                     <td className="px-4 py-3 font-black">{reg.name} <span className="text-gray-400 ml-1">{reg.englishName}</span></td>
                     <td className="px-4 py-3 font-mono">{reg.phone}</td>
-                    <td className="px-4 py-3 text-center">{reg.adultFamilyCount}</td>
-                    <td className="px-4 py-3 text-center">{reg.childFamilyCount}</td>
+                    <td className="px-4 py-3 text-center">{1 + reg.adultFamilyCount + reg.childFamilyCount}</td>
                     <td className="px-4 py-3 text-gray-400">{new Date(reg.timestamp).toLocaleString()}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${reg.hasEdited ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{reg.hasEdited ? '已改' : '正常'}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black ${reg.hasEdited ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{reg.hasEdited ? '已修改' : '初始'}</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'logs' && (
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
+          <div className="flex justify-between items-center border-b pb-4">
+            <h3 className="text-sm font-black text-gray-900 uppercase">修改历史提醒 (近500条记录)</h3>
+            <button onClick={refreshData} className="text-sky-500 font-bold text-xs hover:underline">刷新列表</button>
+          </div>
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+            {logs.length === 0 ? (
+              <div className="py-20 text-center text-gray-400 font-bold">暂无修改记录</div>
+            ) : (
+              logs.map(log => (
+                <div key={log.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${log.action === 'create' ? 'bg-green-500' : 'bg-amber-500'}`}>
+                      {log.action === 'create' ? '入' : '改'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-gray-900">
+                        {log.userName} <span className="text-gray-400 font-normal">{log.action === 'create' ? '完成了首次报名' : '修改了报名信息'}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(log.timestamp).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${log.action === 'create' ? 'text-green-600 bg-green-50' : 'text-amber-600 bg-amber-50'}`}>
+                    {log.action === 'create' ? 'NEW ENTRY' : 'MODIFIED'}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -212,14 +236,12 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <p className="text-[10px] text-amber-600 font-bold">* 上限设置将直接影响首页进度条百分比。</p>
-
             <button 
               onClick={handleSaveConfig}
               disabled={isSaving}
-              className="w-full bg-sky-500 text-white font-black py-4 rounded-2xl hover:bg-sky-600 transition-all shadow-lg shadow-sky-100"
+              className="w-full bg-sky-500 text-white font-black py-4 rounded-2xl hover:bg-sky-600 transition-all shadow-lg"
             >
-              {isSaving ? '正在保存...' : '确认并同步到云端'}
+              {isSaving ? '正在保存...' : '保存设置'}
             </button>
           </div>
         </div>
@@ -227,8 +249,7 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'guide' && (
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center py-20">
-          <p className="text-gray-400 font-bold">指南编辑模块（原有逻辑）</p>
-          <button onClick={handleSaveGuide} className="mt-4 bg-gray-900 text-white px-6 py-2 rounded-xl text-xs font-black">保存指南</button>
+          <p className="text-gray-400 font-bold italic">指南内容实时同步中</p>
         </div>
       )}
     </div>

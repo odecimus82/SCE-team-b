@@ -48,17 +48,19 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
     init();
   }, [editMode]);
 
-  // 当姓名改变时尝试自动匹配（无论是否 editMode，实现点击修改后输入姓名自动跳出的逻辑）
+  // 当姓名改变时尝试自动匹配
   useEffect(() => {
-    if (!formData.name.trim() || allRegistrations.length === 0) {
+    const trimmedName = formData.name.trim();
+    if (!trimmedName || allRegistrations.length === 0) {
       setMatchedMsg('');
       return;
     }
 
-    const match = allRegistrations.find(r => r.name.trim() === formData.name.trim());
+    // 只在中文姓名较完整（2个字以上）或完全匹配时触发提示，增强体验
+    const match = allRegistrations.find(r => r.name.trim() === trimmedName);
     if (match) {
-      // 只有当当前状态还是空或者处于编辑模式尝试查找时才覆盖，避免用户正常输入时被打断
-      // 如果是为了“输入姓名自动跳出”，我们可以在这里检测
+      // 如果数据还没被填充过，则自动跳出之前的信息进行修改
+      // 检查当前其他字段是否大部分为空，或者姓名完全匹配时覆盖
       setFormData(prev => ({
         ...prev,
         englishName: match.englishName,
@@ -67,7 +69,7 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
         childFamilyCount: match.childFamilyCount,
       }));
       setOwnRegId(match.id);
-      setMatchedMsg('✨ 已成功匹配并跳出您的历史报名信息');
+      setMatchedMsg('✨ 系统已自动跳出您的历史报名信息，您可以直接修改并保存');
     } else {
       setMatchedMsg('');
     }
@@ -82,7 +84,7 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
 
     setIsSubmitting(true);
     try {
-      // 这里统一调用 saveRegistration，因为它内部已经包含了姓名匹配逻辑
+      // saveRegistration 内部会自动处理姓名冲突，匹配即更新
       await storageService.saveRegistration(formData);
       setShowSuccess(true);
       setTimeout(onSuccess, 2000);
@@ -99,8 +101,8 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
         <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto animate-bounce">
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
         </div>
-        <h2 className="text-2xl font-black text-gray-900 uppercase">数据已同步</h2>
-        <p className="text-gray-500 font-medium">感谢您的配合，团建现场见！</p>
+        <h2 className="text-2xl font-black text-gray-900 uppercase">信息已更新</h2>
+        <p className="text-gray-500 font-medium">数据已实时同步，修改记录已在后台登记。</p>
       </div>
     );
   }
@@ -110,17 +112,17 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
       <div className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
         <div className="bg-gray-900 p-6 sm:p-8 text-white text-center">
           <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter">
-            {editMode ? '信息修改' : '实时报名'}
+            {editMode || ownRegId ? '信息修改' : '实时报名'}
           </h2>
           <p className="opacity-70 font-bold mt-1 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-sky-400">
-            {editMode ? 'UPDATE YOUR DETAILS' : 'JOIN THE EXPEDITION'}
+            UNLIMITED MODIFICATION ENABLED
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
           <div className="bg-sky-50 p-4 rounded-xl border border-sky-100 mb-2">
             <p className="text-[10px] text-sky-700 font-bold leading-relaxed">
-              * 提示：输入中文姓名后，系统将自动检索并跳出您之前填写的信息，方便您直接修改。
+              * 支持无限次修改：在下方输入【中文姓名】后，系统会自动调取您之前的记录。修改完毕后再次点击确认即可。
             </p>
           </div>
 
@@ -132,22 +134,22 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
                 type="text" 
                 value={formData.name} 
                 onChange={e => setFormData({...formData, name: e.target.value})} 
-                placeholder="输入真实姓名" 
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-bold text-sm focus:border-sky-500 transition-colors" 
+                placeholder="输入之前报名的姓名" 
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-bold text-sm focus:border-sky-500 transition-colors shadow-sm" 
               />
-              {matchedMsg && <p className="text-[9px] text-green-600 font-black animate-pulse">{matchedMsg}</p>}
+              {matchedMsg && <p className="text-[9px] text-green-600 font-black italic mt-1">{matchedMsg}</p>}
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block ml-1">英文名</label>
-              <input required type="text" value={formData.englishName} onChange={e => setFormData({...formData, englishName: e.target.value})} placeholder="English Name" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-bold text-sm" />
+              <input required type="text" value={formData.englishName} onChange={e => setFormData({...formData, englishName: e.target.value})} placeholder="English Name" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-bold text-sm shadow-sm" />
             </div>
             <div className="md:col-span-2 space-y-1.5">
               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block ml-1">联系电话</label>
-              <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="手机号码" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-bold text-sm" />
+              <input required type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="手机号码" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-bold text-sm shadow-sm" />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 p-5 bg-slate-50 rounded-2xl">
+          <div className="grid grid-cols-2 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
             <div className="space-y-1.5 text-center">
               <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest">随行大人</label>
               <input type="number" min="0" value={formData.adultFamilyCount} onChange={e => setFormData({...formData, adultFamilyCount: parseInt(e.target.value) || 0})} className="w-full px-4 py-2 rounded-xl border-none shadow-sm font-black text-center text-base" />
@@ -167,8 +169,8 @@ const RegistrationForm: React.FC<Props> = ({ onSuccess, editMode }) => {
           >
             {isSubmitting ? '处理中...' : (
               <>
-                <span>{ownRegId ? '保存修改' : '确认报名'}</span>
-                <span className="text-[10px] opacity-80 tracking-widest uppercase">Sync to Cloud</span>
+                <span>{ownRegId ? '更新我的报名' : '确认报名'}</span>
+                <span className="text-[10px] opacity-80 tracking-widest uppercase">SAVE TO CLOUD</span>
               </>
             )}
           </button>

@@ -1,5 +1,5 @@
 
-import { Registration, CampusInfoSection, AppConfig } from '../types';
+import { Registration, CampusInfoSection, AppConfig, EditLog } from '../types';
 import { CAMPUS_DATA as DEFAULT_CAMPUS_DATA, REGISTRATION_DEADLINE as DEFAULT_DEADLINE, MAX_CAPACITY_TARGET as DEFAULT_CAPACITY } from '../constants';
 
 const OWN_REG_ID_KEY = 'corsair_own_reg_id';
@@ -7,7 +7,6 @@ const LOCAL_DATA_CACHE = 'corsair_registrations_cache';
 const SYNC_API = '/api/sync';
 
 export const storageService = {
-  // 获取全局配置
   fetchConfig: async (): Promise<AppConfig> => {
     try {
       const res = await fetch(`${SYNC_API}?type=config&t=${Date.now()}`);
@@ -24,7 +23,6 @@ export const storageService = {
     return { isRegistrationOpen: true, deadline: DEFAULT_DEADLINE, maxCapacity: DEFAULT_CAPACITY };
   },
 
-  // 保存全局配置
   saveConfig: async (config: AppConfig): Promise<boolean> => {
     try {
       const res = await fetch(SYNC_API, {
@@ -55,6 +53,33 @@ export const storageService = {
     return cache ? JSON.parse(cache) : [];
   },
 
+  fetchLogs: async (): Promise<EditLog[]> => {
+    try {
+      const res = await fetch(`${SYNC_API}?type=logs&t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      }
+    } catch (e) {}
+    return [];
+  },
+
+  addLog: async (userName: string, action: 'create' | 'update'): Promise<void> => {
+    try {
+      const log: EditLog = {
+        id: Math.random().toString(36).substr(2, 9),
+        userName,
+        timestamp: Date.now(),
+        action
+      };
+      await fetch(SYNC_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'logs', log })
+      });
+    } catch (e) {}
+  },
+
   fetchCampusData: async (): Promise<CampusInfoSection[]> => {
     try {
       const res = await fetch(`${SYNC_API}?type=campus&t=${Date.now()}`);
@@ -80,18 +105,17 @@ export const storageService = {
   },
 
   saveRegistration: async (data: Omit<Registration, 'id' | 'timestamp' | 'hasEdited'>): Promise<Registration> => {
-    // 智能匹配逻辑：如果在提交时发现姓名相同的记录，则转为更新
     const remoteData = await storageService.fetchRemoteRegistrations();
     const existing = remoteData.find(r => r.name.trim() === data.name.trim());
     
     if (existing) {
-      // 如果已经修改过，这里也可以做拦截，但用户要求匹配即修改
       const updated = { ...existing, ...data, hasEdited: true, timestamp: Date.now() };
       await fetch(SYNC_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registration: updated })
       });
+      await storageService.addLog(data.name, 'update');
       localStorage.setItem(OWN_REG_ID_KEY, existing.id);
       return updated;
     }
@@ -105,6 +129,7 @@ export const storageService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registration: newReg })
       });
+      await storageService.addLog(data.name, 'create');
     } catch (e) {}
     return newReg;
   },
@@ -120,13 +145,16 @@ export const storageService = {
     const remoteData = await storageService.fetchRemoteRegistrations();
     const index = remoteData.findIndex(r => r.id === id);
     if (index !== -1) {
-      const updated = { ...remoteData[index], ...data, hasEdited: true };
+      const updated = { ...remoteData[index], ...data, hasEdited: true, timestamp: Date.now() };
       try {
         const res = await fetch(SYNC_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ registration: updated })
         });
+        if (res.ok) {
+          await storageService.addLog(updated.name, 'update');
+        }
         return res.ok;
       } catch (e) {}
     }

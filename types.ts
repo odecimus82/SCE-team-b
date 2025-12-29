@@ -10,6 +10,13 @@ export interface Registration {
   hasEdited?: boolean;
 }
 
+export interface EditLog {
+  id: string;
+  userName: string;
+  timestamp: number;
+  action: 'create' | 'update';
+}
+
 export interface AppConfig {
   isRegistrationOpen: boolean;
   deadline: number;
