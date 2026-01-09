@@ -97,7 +97,6 @@ export const storageService = {
     const existing = remoteData.find(r => r.name.trim() === data.name.trim());
     
     if (existing) {
-      // 计算差异
       const diff: string[] = [];
       if (existing.englishName !== data.englishName) diff.push(`英文名: ${existing.englishName || '-'} -> ${data.englishName || '-'}`);
       if (existing.phone !== data.phone) diff.push(`手机: ${existing.phone} -> ${data.phone}`);
@@ -129,6 +128,37 @@ export const storageService = {
       await storageService.addLog(data.name, 'create', `初始报名: 总人数 ${1 + data.adultFamilyCount + data.childFamilyCount}`);
     } catch (e) {}
     return newReg;
+  },
+
+  // 管理员专用：直接操作云端且不触碰本地 localStorage
+  adminSaveRegistration: async (reg: Registration): Promise<boolean> => {
+    try {
+      const res = await fetch(SYNC_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registration: reg })
+      });
+      if (res.ok) {
+        await storageService.addLog('Admin', reg.hasEdited ? 'update' : 'create', `管理员操作: ${reg.name}`);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  },
+
+  adminDeleteRegistration: async (id: string, name: string): Promise<boolean> => {
+    try {
+      const res = await fetch(SYNC_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'delete_registration', id })
+      });
+      if (res.ok) {
+        await storageService.addLog('Admin', 'update', `管理员删除了报名: ${name}`);
+        return true;
+      }
+    } catch (e) {}
+    return false;
   },
 
   getOwnRegistration: async (): Promise<Registration | null> => {

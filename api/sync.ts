@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const { type, registration, campusData, config, log } = req.body;
+      const { type, registration, campusData, config, log, id } = req.body;
 
       if (type === 'config' && config) {
         await kv.set(CONFIG_KEY, config);
@@ -51,6 +51,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (type === 'campus' && campusData) {
         await kv.set(CAMPUS_KEY, campusData);
+        return res.status(200).json({ success: true });
+      }
+
+      // 单条记录删除逻辑
+      if (type === 'delete_registration' && id) {
+        const currentData: any[] = (await kv.get(REG_KEY)) || [];
+        const filteredData = currentData.filter(r => r.id !== id);
+        await kv.set(REG_KEY, filteredData);
         return res.status(200).json({ success: true });
       }
 
