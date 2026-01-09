@@ -100,7 +100,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Fix: Added handleSaveConfig to persist application configuration changes.
   const handleSaveConfig = async () => {
     setIsSaving(true);
     const success = await storageService.saveConfig(config);
@@ -209,11 +208,11 @@ const AdminDashboard: React.FC = () => {
       {activeTab === 'list' && (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="space-y-1">
+            <div className="space-y-1 text-center sm:text-left">
               <h3 className="text-sm font-black text-gray-900 uppercase">报名人员详细清单 (共{registrations.length}条记录)</h3>
               <p className="text-[10px] text-gray-400 font-bold uppercase">Full List of Registered Participants</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <button 
                 onClick={() => handleOpenModal()}
                 className="bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-sky-600 shadow-lg shadow-sky-100 transition-all flex items-center gap-2"
@@ -236,7 +235,40 @@ const AdminDashboard: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-gray-50">
+
+          {/* 实时概览简栏 (新增内容) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+             <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-sky-500 rounded-xl flex items-center justify-center text-white text-xs font-black">Σ</div>
+                <div>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">总预计人数</p>
+                  <p className="text-sm font-black text-gray-900">{stats.totalPeople}</p>
+                </div>
+             </div>
+             <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center text-white text-xs font-black">E</div>
+                <div>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">主报名员工</p>
+                  <p className="text-sm font-black text-gray-900">{stats.employees}</p>
+                </div>
+             </div>
+             <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-slate-300 rounded-xl flex items-center justify-center text-gray-700 text-xs font-black">A</div>
+                <div>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">随行大人</p>
+                  <p className="text-sm font-black text-gray-900">{stats.familyAdults}</p>
+                </div>
+             </div>
+             <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sky-500 text-xs font-black">C</div>
+                <div>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">随行儿童</p>
+                  <p className="text-sm font-black text-gray-900">{stats.children}</p>
+                </div>
+             </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-gray-50 mt-4">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase">
